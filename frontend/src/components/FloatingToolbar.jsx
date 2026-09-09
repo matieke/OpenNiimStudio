@@ -1,11 +1,12 @@
 import React from 'react';
 import { useStore } from '../store';
 import { calculateAutoFitItem } from '../utils/rendering';
+import { getItemSectionBounds } from '../utils/canvasPages';
 import {
   AlignLeft, AlignCenter, AlignRight,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   Bold, Italic, Maximize, BoxSelect, WrapText, ArrowRightToLine,
-  Trash2
+  Trash2, Layers
 } from 'lucide-react';
 
 const ToolbarButton = ({ icon: Icon, onClick, active, title, className = '' }) => (
@@ -49,25 +50,28 @@ const HoverMenuGroup = ({ currentIcon: Icon, title, children }) => (
 export default function FloatingToolbar({ item, zoomScale, canvasWidth, canvasHeight, workspacePad = 0 }) {
   const updateItem = useStore((state) => state.updateItem);
   const deleteItem = useStore((state) => state.deleteItem);
+  const splitSections = useStore((state) => state.splitSections);
 
   if (!item || item.type === 'cut_line_indicator') return null;
 
   const isText = item.type === 'text';
 
   const handleFillCanvas = () => {
+    const bounds = getItemSectionBounds(item, canvasWidth, canvasHeight, splitSections);
     let updated = {
       ...item,
-      x: 0,
-      y: 0,
-      width: canvasWidth,
-      height: canvasHeight
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height
     };
 
     if (isText) {
       updated.align = 'center';
       updated.verticalAlign = 'middle';
       updated.fit_to_width = true;
-      updated = calculateAutoFitItem(updated, useStore.getState().batchRecords, canvasWidth, canvasHeight);
+      updated.batch_scale_mode = 'individual';
+      updated = calculateAutoFitItem(updated, useStore.getState().batchRecords, bounds.width, bounds.height);
     }
 
     updateItem(item.id, updated);
@@ -78,7 +82,9 @@ export default function FloatingToolbar({ item, zoomScale, canvasWidth, canvasHe
 
     let updated = { ...item, fit_to_width: !item.fit_to_width };
     if (updated.fit_to_width) {
-      updated = calculateAutoFitItem(updated, useStore.getState().batchRecords, canvasWidth, canvasHeight);
+      updated.batch_scale_mode = 'individual';
+      const bounds = getItemSectionBounds(item, canvasWidth, canvasHeight, splitSections);
+      updated = calculateAutoFitItem(updated, useStore.getState().batchRecords, bounds.width, bounds.height);
     }
     updateItem(item.id, updated);
   };
@@ -136,10 +142,30 @@ export default function FloatingToolbar({ item, zoomScale, canvasWidth, canvasHe
           <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1" />
 
           <ToolbarButton icon={BoxSelect} active={item.fit_to_width} onClick={handleFitBox} title="Auto-Scale Font to Fit Box" />
+          {item.fit_to_width && (
+            <ToolbarButton
+              icon={Layers}
+              active={item.batch_scale_mode === 'individual' || (splitSections?.enabled && item.batch_scale_mode !== 'uniform')}
+              onClick={() => {
+                const currentIndividual = item.batch_scale_mode === 'individual' || (splitSections?.enabled && item.batch_scale_mode !== 'uniform');
+                updateItem(item.id, { batch_scale_mode: currentIndividual ? 'uniform' : 'individual' });
+              }}
+              title={
+                (item.batch_scale_mode === 'individual' || (splitSections?.enabled && item.batch_scale_mode !== 'uniform'))
+                  ? "Scale Individually: Each page/record fits to its own text"
+                  : "Scale Uniformly: Locked to largest text across pages"
+              }
+            />
+          )}
         </>
       )}
 
-      <ToolbarButton icon={Maximize} active={false} onClick={handleFillCanvas} title="Maximize to Fill Entire Canvas" />
+      <ToolbarButton
+        icon={Maximize}
+        active={false}
+        onClick={handleFillCanvas}
+        title={splitSections?.enabled ? "Maximize to Fill Section" : "Maximize to Fill Entire Canvas"}
+      />
 
       <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700 mx-1" />
 

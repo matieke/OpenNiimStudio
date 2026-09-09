@@ -22,6 +22,13 @@ if not logger.handlers:
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - [Niimbot] %(message)s')
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+    try:
+        fh = logging.FileHandler("niimbot_debug.log", mode="a")
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+    except Exception:
+        pass
 
 
 class RequestCodeEnum(enum.IntEnum):
@@ -39,6 +46,37 @@ class RequestCodeEnum(enum.IntEnum):
     SET_DIMENSION = 19
     SET_QUANTITY = 21
     GET_PRINT_STATUS = 163
+    PRINT_BITMAP_ROW = 133          # 0x85
+    PRINT_EMPTY_ROW = 132           # 0x84
+    PRINT_BITMAP_ROW_INDEXED = 131  # 0x83
+
+
+def count_pixels_for_bitmap(
+    line_data: bytes, printhead_pixels: int = 96
+) -> Tuple[int, Tuple[int, int, int], bytes]:
+    """
+    Counts black pixels (1-bits) in line_data across 3 chunks of the printhead.
+    Returns:
+      (total_black_pixels, (count_chunk0, count_chunk1, count_chunk2), index_bytes)
+    where index_bytes are uint16_be encoded indices for black pixels (used for 0x83 packets).
+    """
+    chunk_size = max(1, printhead_pixels // 8 // 3)
+    total = 0
+    parts = [0, 0, 0]
+    indices = []
+
+    for byte_idx, b in enumerate(line_data):
+        if b == 0:
+            continue
+        chunk_idx = min(2, byte_idx // chunk_size)
+        for bit in range(8):
+            if b & (1 << (7 - bit)):
+                total += 1
+                parts[chunk_idx] += 1
+                pixel_idx = byte_idx * 8 + bit
+                indices.extend([(pixel_idx >> 8) & 0xFF, pixel_idx & 0xFF])
+
+    return total, (min(255, parts[0]), min(255, parts[1]), min(255, parts[2])), bytes(indices)
 
 
 class InfoEnum(enum.IntEnum):
@@ -80,6 +118,23 @@ class NiimbotPacket:
         for value in self.data:
             checksum ^= value
         return bytes((0x55, 0x55, self.type, len(self.data), *self.data, checksum, 0xAA, 0xAA))
+
+
+RESPONSE_MAP: Dict[int, List[int]] = {
+    RequestCodeEnum.START_PRINT: [2],
+    RequestCodeEnum.START_PAGE_PRINT: [4],
+    RequestCodeEnum.SET_DIMENSION: [20],
+    RequestCodeEnum.SET_QUANTITY: [22],
+    RequestCodeEnum.GET_RFID: [27],
+    RequestCodeEnum.ALLOW_PRINT_CLEAR: [33],
+    RequestCodeEnum.SET_LABEL_DENSITY: [34],
+    RequestCodeEnum.SET_LABEL_TYPE: [36],
+    RequestCodeEnum.GET_INFO: [65],
+    RequestCodeEnum.GET_PRINT_STATUS: [179],
+    RequestCodeEnum.HEARTBEAT: [217, 219, 221, 222],
+    RequestCodeEnum.END_PAGE_PRINT: [228],
+    RequestCodeEnum.END_PRINT: [244],
+}
 
 
 class NiimbotClient(BasePrinterClient):
@@ -133,16 +188,14 @@ class NiimbotClient(BasePrinterClient):
                 continue
 
             matched_req_code = None
-            if packet.type in self._events:
-                matched_req_code = packet.type
-            elif (packet.type - 1) in self._events:
-                matched_req_code = packet.type - 1
-            elif len(self._events) == 1 and packet.type not in (220, 163):
-                matched_req_code = list(self._events.keys())[0]
+            for req_code in list(self._events.keys()):
+                expected = RESPONSE_MAP.get(req_code, [req_code, req_code + 1])
+                if packet.type in expected or packet.type == req_code or packet.type == (req_code + 1):
+                    matched_req_code = req_code
+                    break
 
             if matched_req_code is None:
-                if packet.type not in (220, 163):
-                    logger.debug(f"Unsolicited packet received: type={packet.type}, data={packet.data.hex()}")
+                logger.debug(f"Unsolicited packet received: type={packet.type}, data={packet.data.hex()}")
                 self._responses[packet.type] = packet
                 continue
 
@@ -178,9 +231,9 @@ class NiimbotClient(BasePrinterClient):
                 self.notify_uuid = None
                 self.write_uuid = None
 
-                PREFERRED_COMBINED =["bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"]
-                PREFERRED_WRITE =["49535343-8841-43f4-a8d4-ecbe34729bb3"]
-                PREFERRED_NOTIFY =["49535343-1e4d-4bd9-ba61-23c647249616"]
+                PREFERRED_COMBINED = ["bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"]
+                PREFERRED_WRITE = ["49535343-8841-43f4-a8d4-ecbe34729bb3"]
+                PREFERRED_NOTIFY = ["49535343-1e4d-4bd9-ba61-23c647249616"]
 
                 preferred_service_uuid = self._ble_profile.preferred_service_uuid.lower()
                 for service in self.client.services:
@@ -315,16 +368,17 @@ class NiimbotClient(BasePrinterClient):
     def _prepare_print_image(self, image: Image.Image, print_width_px: int) -> Image.Image:
         working = image.copy()
 
-        # Only scale down if the user somehow generated a label wider than the absolute
-        # physical maximum of the printhead (e.g., > 120px for D11).
+        # If a wide horizontal label was supplied without pre-rotation, orient it along the print direction
+        if working.width > working.height and working.width > print_width_px and working.height <= print_width_px:
+            working = working.rotate(90, expand=True)
+
+        # Only scale down if the user generated a label wider than the physical printhead
         if working.width > print_width_px:
             ratio = print_width_px / float(working.width)
             new_height = max(1, int(working.height * ratio))
             working = working.resize((print_width_px, new_height), Image.Resampling.LANCZOS)
 
-        # CRITICAL FIX: Do NOT pad to print_width_px to center it.
-        # Niimbot firmware auto-centers based on the RFID tape width and SET_DIMENSION.
-        # We only need to pad slightly to ensure the width is a multiple of 8 for byte packing.
+        # Pad slightly to ensure the width is a multiple of 8 for byte packing
         remainder = working.width % 8
         if remainder != 0:
             new_width = working.width + (8 - remainder)
@@ -334,26 +388,61 @@ class NiimbotClient(BasePrinterClient):
 
         return working.convert("RGB")
 
-    async def _wait_for_end_page_ack(self, timeout: float = 15.0) -> None:
+    async def _wait_for_page_finished(self, page_num: int, timeout: float = 15.0) -> None:
+        """
+        Waits for the printer to finish physical printing and paper feed for page_num.
+        Polls GET_PRINT_STATUS (0xa3) which returns In_PrintStatus (0xb3 = 179).
+        Payload contains: [page_hi, page_lo, page_print_progress, page_feed_progress, ...]
+        """
         deadline = asyncio.get_running_loop().time() + timeout
-        logger.debug("Waiting for END_PAGE_PRINT acknowledgment...")
-        while True:
-            packet = await self.send_command(RequestCodeEnum.END_PAGE_PRINT, b"\x01", timeout=1.0)
-            if packet and len(packet.data) > 0:
-                if packet.data[0] == 1:
-                    logger.debug("END_PAGE_PRINT acknowledged.")
+        logger.debug(f"Waiting for physical printer to finish printing page {page_num}...")
+
+        while asyncio.get_running_loop().time() < deadline:
+            pkt = await self.send_command(RequestCodeEnum.GET_PRINT_STATUS, b"\x01", timeout=0.8)
+            if pkt and pkt.data and len(pkt.data) >= 4:
+                reported_page = (pkt.data[0] << 8) | pkt.data[1]
+                print_progress = pkt.data[2]
+                feed_progress = pkt.data[3]
+                logger.debug(
+                    f"Printer status: page={reported_page}/{page_num}, "
+                    f"print={print_progress}%, feed={feed_progress}%"
+                )
+                if reported_page >= page_num and (feed_progress >= 100 or feed_progress == 0):
+                    logger.debug(f"Page {page_num} finished (feed: {feed_progress}%).")
                     return
-                else:
-                    logger.debug(f"Printer busy ({packet.data.hex()}), retrying END_PAGE_PRINT...")
-            
-            if asyncio.get_running_loop().time() >= deadline:
-                logger.warning("Timed out waiting for END_PAGE_PRINT ack. Proceeding to prevent lockup.")
-                return
-            await asyncio.sleep(0.2)
+            elif pkt and pkt.data:
+                logger.debug(f"Printer status raw: {pkt.data.hex()}")
+                if pkt.data == b"\x01":
+                    await asyncio.sleep(1.0)
+                    return
+            await asyncio.sleep(0.3)
+
+        logger.warning(f"Status polling timed out after {timeout}s for page {page_num}. Proceeding...")
+
+    async def _finish_print_session(self, timeout: float = 10.0) -> None:
+        """
+        Ends print session by sending END_PRINT (0xf3) and waiting for confirmation (0x01).
+        When the printer is still mechanically busy, END_PRINT returns a multi-byte status.
+        Once completely finished, it returns 0x01.
+        """
+        deadline = asyncio.get_running_loop().time() + timeout
+        while asyncio.get_running_loop().time() < deadline:
+            pkt = await self.send_command(RequestCodeEnum.END_PRINT, b"\x01", timeout=1.0)
+            if pkt and pkt.data:
+                if len(pkt.data) == 1 and pkt.data[0] == 1:
+                    logger.debug("Printer confirmed END_PRINT.")
+                    return
+                logger.debug(f"Printer busy during END_PRINT (status {pkt.data.hex()}), waiting...")
+            await asyncio.sleep(0.5)
+        logger.warning(f"END_PRINT polling timed out after {timeout}s.")
 
     async def print_images(self, images: List[Image.Image], split_mode: bool = False, dither: bool = True) -> None:
-        logger.info(f"Starting batch print job for {len(images)} image(s) using independent jobs...")
-        
+        if not images:
+            return
+
+        total_pages = len(images)
+        logger.info(f"Starting batch print job for {total_pages} image(s)...")
+
         default_density = int(self.hardware_info.get("default_energy", 3) or 3)
         max_allowed = max(1, int(self.hardware_info.get("max_density", 5) or 5))
         raw_density = (
@@ -362,73 +451,107 @@ class NiimbotClient(BasePrinterClient):
             else default_density
         )
         density = max(1, min(int(raw_density), max_allowed))
-        
-        print_width_px = max(1, int(self.hardware_info.get("width_px", 120) or 120))
+
+        print_width_px = max(1, int(self.hardware_info.get("width_px", 96) or 96))
         media_type_str = self.hardware_info.get("media_type", "pre-cut")
         label_type = 2 if media_type_str == "continuous" else 1
 
-        try:
-            for i, image in enumerate(images):
-                logger.info(f"--- Printing label {i + 1} of {len(images)} ---")
-                
-                # FORCE STATE CLEAR before each label to avoid "Job Full" (Error 06) firmware issues
-                await self.send_command(RequestCodeEnum.END_PRINT, b"\x01", timeout=1.0)
-                await self.send_command(RequestCodeEnum.ALLOW_PRINT_CLEAR, b"\x01", timeout=1.0)
+        model_id = str(self.hardware_info.get("model_id") or "").strip().upper()
+        protocol_variant = str(self.hardware_info.get("protocol_variant") or "").strip().lower()
+        is_b1_family = protocol_variant == "b1" or model_id in ("D110_M", "B1", "B21", "B18", "B3S", "D101")
 
-                # Session Setup
-                await self.send_command(RequestCodeEnum.SET_LABEL_DENSITY, bytes([density]), timeout=1.0)
-                await self.send_command(RequestCodeEnum.SET_LABEL_TYPE, bytes([label_type]), timeout=1.0)
-                
-                # Start 1-page Job explicitly
+        logger.info(
+            f"Niimbot print: model={model_id}, protocol_variant={protocol_variant}, "
+            f"is_b1_family={is_b1_family}, print_width_px={print_width_px}, density={density}, total_pages={total_pages}"
+        )
+
+        session_started = False
+        try:
+            # Session Setup
+            await self.send_command(RequestCodeEnum.SET_LABEL_DENSITY, bytes([density]), timeout=1.0)
+            await self.send_command(RequestCodeEnum.SET_LABEL_TYPE, bytes([label_type]), timeout=1.0)
+
+            # Start Print Session
+            if is_b1_family:
+                start_payload = struct.pack(">H4BB", total_pages, 0, 0, 0, 0, 1)
+                start_pkt = await self.send_command(RequestCodeEnum.START_PRINT, start_payload, timeout=2.0)
+            else:
                 start_pkt = await self.send_command(RequestCodeEnum.START_PRINT, b"\x01", timeout=2.0)
-                if not start_pkt or not start_pkt.data or start_pkt.data[0] == 0:
-                    logger.warning("Printer returned 0x00 for START_PRINT. State might be dirty. Forcing anyway...")
+
+            if not start_pkt or not start_pkt.data or start_pkt.data[0] == 0:
+                logger.warning("Printer returned 0x00 or None for START_PRINT. Proceeding anyway...")
+            session_started = True
+
+            for i, image in enumerate(images):
+                page_num = i + 1
+                logger.info(f"--- Printing label {page_num} of {total_pages} ---")
 
                 prepared = self._prepare_print_image(image, print_width_px)
                 raster = image_to_raster(prepared, PixelFormat.BW1, dither=dither)
                 packed_bytes = pack_line(raster.pixels, lsb_first=False)
                 width_bytes = (raster.width + 7) // 8
 
+                if not is_b1_family:
+                    await self.send_command(RequestCodeEnum.ALLOW_PRINT_CLEAR, b"\x01", timeout=1.0)
+
                 page_pkt = await self.send_command(RequestCodeEnum.START_PAGE_PRINT, b"\x01", timeout=2.0)
                 if not page_pkt or not page_pkt.data or page_pkt.data[0] == 0:
-                    logger.warning(f"Printer rejected START_PAGE_PRINT. Forcing transmission...")
+                    logger.warning("Printer rejected START_PAGE_PRINT. Forcing transmission...")
 
-                await self.send_command(
-                    RequestCodeEnum.SET_DIMENSION,
-                    struct.pack(">HH", raster.height, raster.width),
-                    timeout=2.0
+                if is_b1_family:
+                    await self.send_command(
+                        RequestCodeEnum.SET_DIMENSION,
+                        struct.pack(">HHH", raster.height, raster.width, 1),
+                        timeout=2.0,
+                    )
+                else:
+                    await self.send_command(
+                        RequestCodeEnum.SET_DIMENSION,
+                        struct.pack(">HH", raster.height, raster.width),
+                        timeout=2.0,
+                    )
+                    await self.send_command(RequestCodeEnum.SET_QUANTITY, struct.pack(">H", 1), timeout=2.0)
+
+                logger.debug(
+                    f"Streaming {raster.height} rows of raster data (width={raster.width}px, {width_bytes}B/row)..."
                 )
-                await self.send_command(RequestCodeEnum.SET_QUANTITY, struct.pack(">H", 1), timeout=2.0)
-
-                logger.debug(f"Streaming {raster.height} rows of raster data...")
                 for y in range(raster.height):
                     line_data = packed_bytes[y * width_bytes : (y + 1) * width_bytes]
-                    header = struct.pack(">HBBBB", y, 0, 0, 0, 1)
-                    packet = NiimbotPacket(0x85, header + line_data)
+                    total_black, parts, indices = count_pixels_for_bitmap(line_data, raster.width)
+
+                    if total_black == 0:
+                        packet = NiimbotPacket(RequestCodeEnum.PRINT_EMPTY_ROW, struct.pack(">HB", y, 1))
+                    elif total_black <= 6 and indices:
+                        header = struct.pack(">HBBBB", y, parts[0], parts[1], parts[2], 1)
+                        packet = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW_INDEXED, header + indices)
+                    else:
+                        header = struct.pack(">HBBBB", y, parts[0], parts[1], parts[2], 1)
+                        packet = NiimbotPacket(RequestCodeEnum.PRINT_BITMAP_ROW, header + line_data)
+
                     await self.write_raw(packet.to_bytes())
-                    
+
                     if y % 32 == 0:
                         await asyncio.sleep(0.01)
 
-                logger.debug("Row streaming complete. Waiting for ACK...")
-                await self._wait_for_end_page_ack(timeout=15.0)
+                logger.debug("Row streaming complete. Ending page...")
+                await self.send_command(RequestCodeEnum.END_PAGE_PRINT, b"\x01", timeout=3.0)
 
-                logger.info(f"Tearing down print session for label {i + 1}...")
-                await self.send_command(RequestCodeEnum.END_PRINT, b"\x01", timeout=3.0)
+                # Wait for the printer to physically print and advance this page
+                await self._wait_for_page_finished(page_num, timeout=15.0)
 
-                if i < len(images) - 1:
-                    logger.debug("Waiting for physical printer to finish feeding paper before next label...")
-                    # This physically acts as a throttle between single-page jobs so the hardware
-                    # doesn't immediately abort the second job with "06" while the print-head is still engaged.
-                    await asyncio.sleep(2.5)
+            # All pages sent and finished, cleanly end the print session
+            logger.info("Finishing print session...")
+            await self._finish_print_session(timeout=10.0)
+            session_started = False
 
         except Exception as e:
             logger.error(f"Print job FAILED: {e}")
             raise RuntimeError(f"Print failed: {e}")
         finally:
-            logger.info("Cleaning up printer state...")
-            try:
-                await self.send_command(RequestCodeEnum.END_PRINT, b"\x01", timeout=1.0)
-            except:
-                pass
+            if session_started:
+                logger.info("Aborting/cleaning up print session...")
+                try:
+                    await self.send_command(RequestCodeEnum.END_PRINT, b"\x01", timeout=1.0)
+                except Exception:
+                    pass
             await asyncio.sleep(0.5)

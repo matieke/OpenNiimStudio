@@ -3,7 +3,7 @@ import { calculateAutoFitItem } from './utils/rendering';
 import { describePrintError } from './utils/apiErrors';
 import { apiFetch, apiJson, isArrayPayload, isObjectPayload } from './utils/apiClient';
 import { buildLabelTemplateMarkup } from './components/templateStyles';
-import { normalizePageIndex } from './utils/canvasPages';
+import { getItemSectionBounds, normalizePageIndex } from './utils/canvasPages';
 import {
   buildBatchMatrix,
   buildBatchSequence,
@@ -15,12 +15,13 @@ import {
   MAX_RENDER_PIXELS
 } from './utils/batchData';
 
-const recalcAutoFit = (items, batchRecords, cw, ch) => {
+const recalcAutoFit = (items, batchRecords, cw, ch, splitSections) => {
   let changed = false;
 
   const nextItems = items.map((item) => {
     if (item.fit_to_width) {
-      const optimizedItem = calculateAutoFitItem(item, batchRecords, cw, ch);
+      const bounds = getItemSectionBounds(item, cw, ch, splitSections);
+      const optimizedItem = calculateAutoFitItem(item, batchRecords, bounds.width, bounds.height);
       if (optimizedItem.size !== item.size) {
         changed = true;
         return optimizedItem;
@@ -146,6 +147,14 @@ const buildCanvasDocumentPatch = (canvasState = {}, currentState = {}) => {
     canvasHeight: height,
     canvasBorder: allowedBorders.has(normalized.canvasBorder) ? normalized.canvasBorder : 'none',
     canvasBorderThickness: Math.max(1, Number(normalized.canvasBorderThickness) || 4),
+    splitSections: {
+      enabled: Boolean(normalized.splitSections?.enabled),
+      rows: Math.min(6, Math.max(1, Number(normalized.splitSections?.rows) || 1)),
+      cols: Math.min(6, Math.max(1, Number(normalized.splitSections?.cols) || 2)),
+      printCutLines: normalized.splitSections?.printCutLines !== undefined ? Boolean(normalized.splitSections.printCutLines) : true,
+      cutLineStyle: ['dashed', 'solid'].includes(normalized.splitSections?.cutLineStyle) ? normalized.splitSections.cutLineStyle : 'dashed',
+      showGuides: normalized.splitSections?.showGuides !== undefined ? Boolean(normalized.splitSections.showGuides) : true,
+    },
     splitMode: Boolean(normalized.splitMode),
     pageLayouts,
     isRotated: Boolean(normalized.isRotated),
@@ -209,6 +218,7 @@ const withHistory = (config) => {
           'splitMode',
           'canvasBorder',
           'canvasBorderThickness',
+          'splitSections',
           'pageLayouts',
           'batchRecords'
         ];
@@ -310,6 +320,14 @@ export const useStore = create(withHistory((set, get) => ({
   canvasHeight: 384,
   canvasBorder: 'none',
   canvasBorderThickness: 4,
+  splitSections: {
+    enabled: false,
+    rows: 1,
+    cols: 2,
+    printCutLines: true,
+    cutLineStyle: 'dashed',
+    showGuides: true
+  },
   splitMode: false,
   isRotated: false,
   selectedPrinter: null,
@@ -319,6 +337,69 @@ export const useStore = create(withHistory((set, get) => ({
   setShowAiConfig: (val) => set({ showAiConfig: val }),
   apiError: '',
   clearApiError: () => set({ apiError: '' }),
+
+  setSplitSections: (val) => set((state) => {
+    const nextSplit = typeof val === 'function' ? val(state.splitSections) : { ...state.splitSections, ...val };
+    return {
+      splitSections: nextSplit,
+      items: recalcAutoFit(state.items, state.batchRecords, state.canvasWidth, state.canvasHeight, nextSplit)
+    };
+  }),
+
+  replicateSection: (sourceIndex = 0) => set((state) => {
+    const split = state.splitSections;
+    if (!split?.enabled) return {};
+    const rows = Math.min(6, Math.max(1, Number(split.rows) || 1));
+    const cols = Math.min(6, Math.max(1, Number(split.cols) || 1));
+    if (rows <= 1 && cols <= 1) return {};
+
+    const cellW = state.canvasWidth / cols;
+    const cellH = state.canvasHeight / rows;
+    const srcRow = Math.floor(sourceIndex / cols);
+    const srcCol = sourceIndex % cols;
+    const srcMinX = srcCol * cellW;
+    const srcMaxX = srcMinX + cellW;
+    const srcMinY = srcRow * cellH;
+    const srcMaxY = srcMinY + cellH;
+
+    const pageItems = state.items.filter((it) => it.pageIndex === state.currentPage);
+    const otherPageItems = state.items.filter((it) => it.pageIndex !== state.currentPage);
+
+    const isInsideCell = (it, cMinX, cMaxX, cMinY, cMaxY) => {
+      const itemW = it.width || 50;
+      const itemH = it.height || 30;
+      const cx = it.x + itemW / 2;
+      const cy = it.y + itemH / 2;
+      return cx >= cMinX && cx < cMaxX && cy >= cMinY && cy < cMaxY;
+    };
+
+    const sourceItems = pageItems.filter((it) => isInsideCell(it, srcMinX, srcMaxX, srcMinY, srcMaxY));
+    if (sourceItems.length === 0) return {};
+
+    const totalCells = rows * cols;
+    const replicated = [];
+
+    for (let idx = 0; idx < totalCells; idx++) {
+      if (idx === sourceIndex) continue;
+      const r = Math.floor(idx / cols);
+      const c = idx % cols;
+      const dx = (c - srcCol) * cellW;
+      const dy = (r - srcRow) * cellH;
+
+      for (const srcItem of sourceItems) {
+        replicated.push({
+          ...srcItem,
+          id: `${srcItem.type}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          x: Math.round(srcItem.x + dx),
+          y: Math.round(srcItem.y + dy)
+        });
+      }
+    }
+
+    return {
+      items: [...otherPageItems, ...sourceItems, ...replicated]
+    };
+  }),
   
   setHtmlContent: (val) => set((state) => {
     const layouts = [...state.pageLayouts];
@@ -565,6 +646,7 @@ export const useStore = create(withHistory((set, get) => ({
           isRotated: state.isRotated,
           canvasBorder: state.canvasBorder,
           canvasBorderThickness: state.canvasBorderThickness || 4,
+          splitSections: state.splitSections,
           splitMode: state.splitMode,
           pageLayouts: state.pageLayouts,
           items: itemsToPrint
@@ -867,7 +949,7 @@ export const useStore = create(withHistory((set, get) => ({
           canvas_state: {
             width: state.canvasWidth, height: state.canvasHeight,
             isRotated: state.isRotated, canvasBorder: state.canvasBorder,
-            canvasBorderThickness: thickness, splitMode: state.splitMode,
+            canvasBorderThickness: thickness, splitSections: state.splitSections, splitMode: state.splitMode,
             pageLayouts: state.pageLayouts,
             items: state.items, currentPage: state.currentPage,
             batchRecords, printCopies
@@ -894,7 +976,7 @@ export const useStore = create(withHistory((set, get) => ({
       canvas_state: {
         width: state.canvasWidth, height: state.canvasHeight,
         isRotated: state.isRotated, canvasBorder: state.canvasBorder,
-        canvasBorderThickness: thickness, splitMode: state.splitMode,
+        canvasBorderThickness: thickness, splitSections: state.splitSections, splitMode: state.splitMode,
         pageLayouts: state.pageLayouts,
         items: state.items, currentPage: state.currentPage,
         batchRecords, printCopies
@@ -989,6 +1071,7 @@ export const useStore = create(withHistory((set, get) => ({
       canvasHeight: nextCanvasHeight,
       isRotated,
       splitMode,
+      splitSections: preset.split_sections || preset.splitSections || state.splitSections,
       canvasBorder: preset.border || 'none',
       pageLayouts: state.pageLayouts.map(l => l.activeTemplate ? {
         ...l,
@@ -1180,7 +1263,7 @@ export const useStore = create(withHistory((set, get) => ({
         if (isPreCutMedia) {
           const model = info.model_id ? info.model_id.toLowerCase() : '';
 
-          if (model === 'd11' || model === 'd110' || model === 'd101') {
+          if (model === 'd11' || model === 'd110' || model === 'd110_m' || model === 'd101') {
             newW = calcMmToPx(40);
             newH = calcMmToPx(15);
             rot = true;
@@ -1467,7 +1550,8 @@ export const useStore = create(withHistory((set, get) => ({
       if (item.id === id) {
         const updatedItem = { ...item, ...newAttrs };
         if (updatedItem.fit_to_width) {
-          return calculateAutoFitItem(updatedItem, state.batchRecords, state.canvasWidth, state.canvasHeight);
+          const bounds = getItemSectionBounds(updatedItem, state.canvasWidth, state.canvasHeight, state.splitSections);
+          return calculateAutoFitItem(updatedItem, state.batchRecords, bounds.width, bounds.height);
         }
         return updatedItem;
       }

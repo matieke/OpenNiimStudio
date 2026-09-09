@@ -30,6 +30,49 @@ const renderCanvasBorder = (canvasState) => {
   return null;
 };
 
+const renderSplitSectionCutLines = (canvasState) => {
+  const split = canvasState?.splitSections;
+  if (!split?.enabled || !split?.printCutLines) return null;
+
+  const rows = Math.min(6, Math.max(1, Number(split.rows) || 1));
+  const cols = Math.min(6, Math.max(1, Number(split.cols) || 1));
+  if (rows <= 1 && cols <= 1) return null;
+
+  const width = Math.max(1, Number(canvasState?.width) || 384);
+  const height = Math.max(1, Number(canvasState?.height) || 384);
+  const dash = split.cutLineStyle === 'solid' ? undefined : [6, 6];
+  const strokeWidth = 1;
+
+  const lines = [];
+  for (let c = 1; c < cols; c++) {
+    const x = Math.round((width / cols) * c);
+    lines.push(
+      <Line
+        key={`split-cut-v-${c}`}
+        points={[x, 0, x, height]}
+        stroke="black"
+        strokeWidth={strokeWidth}
+        dash={dash}
+        listening={false}
+      />
+    );
+  }
+  for (let r = 1; r < rows; r++) {
+    const y = Math.round((height / rows) * r);
+    lines.push(
+      <Line
+        key={`split-cut-h-${r}`}
+        points={[0, y, width, y]}
+        stroke="black"
+        strokeWidth={strokeWidth}
+        dash={dash}
+        listening={false}
+      />
+    );
+  }
+  return <>{lines}</>;
+};
+
 const RENDER_TIMEOUT_MS = 20_000;
 
 export default function HeadlessPage({ state, record, pageIndex, onReady, onError }) {
@@ -117,6 +160,7 @@ export default function HeadlessPage({ state, record, pageIndex, onReady, onErro
           <Layer>
             <Rect x={0} y={0} width={width} height={height} fill="transparent" listening={false} />
             {renderCanvasBorder(state)}
+            {renderSplitSectionCutLines(state)}
             {pageItems.map((item) => (
               <CanvasItemNode
                 key={item.id}

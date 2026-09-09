@@ -3,6 +3,7 @@ import { Ellipse, Group, Image as KonvaImage, Line, Rect, Text } from 'react-kon
 import Konva from 'konva';
 import { toPng } from 'html-to-image';
 import { applyVars, calculateAutoFitItem, computeOptimalTextSize, processHtmlDynamicElements, resolveDim, useCodeGenerator } from '../utils/rendering';
+import { getItemSectionBounds } from '../utils/canvasPages';
 import { useStore } from '../store';
 import { sanitizeLabelHtml } from '../utils/htmlSecurity';
 
@@ -258,11 +259,21 @@ function CanvasItemNode({
   const { visualW, approxHeight, actualLineHeight, pad: activePad } = getVisualMetrics(item, substitutedText, canvasWidth, canvasHeight);
   const groupRef = useRef(null);
   const defaultFont = useStore((state) => state.settings?.default_font) || 'Arial';
+  const splitSections = useStore((state) => state.splitSections);
+  const shouldScaleIndividually = item.batch_scale_mode === 'individual' || (splitSections?.enabled && item.batch_scale_mode !== 'uniform');
 
   let activeItem = item;
-  if (item.type === 'text' && item.fit_to_width && item.batch_scale_mode === 'individual') {
-    const targetWidth = Math.max(10, visualW - (activePad * 2));
-    const targetHeight = Math.max(10, approxHeight - (activePad * 2));
+  let effectiveVisualW = visualW;
+  let effectiveApproxHeight = approxHeight;
+
+  if (item.type === 'text' && item.fit_to_width && shouldScaleIndividually) {
+    const bounds = getItemSectionBounds(item, canvasWidth, canvasHeight, splitSections);
+    const boxW = resolveDim(item.width, canvasWidth) || bounds.width;
+    const boxH = resolveDim(item.height, canvasHeight) || bounds.height;
+    effectiveVisualW = boxW;
+    effectiveApproxHeight = boxH;
+    const targetWidth = Math.max(10, boxW - (activePad * 2));
+    const targetHeight = Math.max(10, boxH - (activePad * 2));
     const dynamicSize = computeOptimalTextSize(item, substitutedText, targetWidth, targetHeight);
     activeItem = { ...item, size: dynamicSize };
   }
@@ -341,12 +352,12 @@ function CanvasItemNode({
     ].filter(Boolean).join(' ') || 'normal';
     const actualColor = activeItem.color || (activeItem.invert ? 'white' : 'black');
     const actualBg = activeItem.bgColor || (activeItem.invert ? 'black' : (activeItem.bg_white ? 'white' : 'transparent'));
-    const availWidth = Math.max(0, visualW - (activePad * 2));
-    const availHeight = Math.max(0, approxHeight - (activePad * 2));
+    const availWidth = Math.max(0, effectiveVisualW - (activePad * 2));
+    const availHeight = Math.max(0, effectiveApproxHeight - (activePad * 2));
 
     element = (
       <Group>
-        {actualBg !== 'transparent' && <Rect width={visualW} height={approxHeight} fill={actualBg} cornerRadius={2} listening={false} />}
+        {actualBg !== 'transparent' && <Rect width={effectiveVisualW} height={effectiveApproxHeight} fill={actualBg} cornerRadius={2} listening={false} />}
         <Text
           text={substitutedText}
           x={activePad}

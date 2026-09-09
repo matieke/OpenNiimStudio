@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Group, Layer, Line, Path, Rect, Stage, Transformer } from 'react-konva';
+import { Group, Layer, Line, Path, Rect, Stage, Text, Transformer } from 'react-konva';
 import { useStore } from '../store';
 import { useShallow } from 'zustand/react/shallow';
 import CanvasItemNode from './CanvasItemNode';
@@ -35,6 +35,7 @@ export default function CanvasArea() {
     selectedPrinterInfo,
     currentDpi,
     splitMode,
+    splitSections,
     pageLayouts,
     batchRecords
   } = useStore(useShallow((state) => ({
@@ -60,6 +61,7 @@ export default function CanvasArea() {
     selectedPrinterInfo: state.selectedPrinterInfo,
     currentDpi: state.currentDpi,
     splitMode: state.splitMode,
+    splitSections: state.splitSections,
     pageLayouts: state.pageLayouts,
     batchRecords: state.batchRecords
   })));
@@ -93,7 +95,8 @@ export default function CanvasArea() {
           canvasBorder: state.canvasBorder,
           canvasBorderThickness: state.canvasBorderThickness,
           items: state.items,
-          pageLayouts: state.pageLayouts
+          pageLayouts: state.pageLayouts,
+          splitSections: state.splitSections
         }
       });
     });
@@ -256,9 +259,54 @@ export default function CanvasArea() {
       if (Math.abs((y + h) - box.y) < SNAP_T) { newY = box.y - h; lines.push({ points: [-9999, box.y, 9999, box.y], stroke: '#f59e0b' }); }
     }
 
+    // Section Center and Boundary Snapping
+    if (splitSections?.enabled) {
+      const sRows = Math.min(6, Math.max(1, Number(splitSections.rows) || 1));
+      const sCols = Math.min(6, Math.max(1, Number(splitSections.cols) || 1));
+      const cellW = canvasWidth / sCols;
+      const cellH = canvasHeight / sRows;
+
+      for (let c = 0; c < sCols; c++) {
+        const cellCenterX = c * cellW + cellW / 2;
+        if (Math.abs(x + w / 2 - cellCenterX) < SNAP_T) {
+          newX = cellCenterX - w / 2;
+          lines.push({ points: [cellCenterX, -9999, cellCenterX, 9999], stroke: '#3b82f6' });
+        }
+      }
+      for (let r = 0; r < sRows; r++) {
+        const cellCenterY = r * cellH + cellH / 2;
+        if (Math.abs(y + h / 2 - cellCenterY) < SNAP_T) {
+          newY = cellCenterY - h / 2;
+          lines.push({ points: [-9999, cellCenterY, 9999, cellCenterY], stroke: '#3b82f6' });
+        }
+      }
+      for (let c = 1; c < sCols; c++) {
+        const divX = Math.round(c * cellW);
+        if (Math.abs(x - divX) < SNAP_T) {
+          newX = divX;
+          lines.push({ points: [divX, -9999, divX, 9999], stroke: '#3b82f6' });
+        }
+        if (Math.abs(x + w - divX) < SNAP_T) {
+          newX = divX - w;
+          lines.push({ points: [divX, -9999, divX, 9999], stroke: '#3b82f6' });
+        }
+      }
+      for (let r = 1; r < sRows; r++) {
+        const divY = Math.round(r * cellH);
+        if (Math.abs(y - divY) < SNAP_T) {
+          newY = divY;
+          lines.push({ points: [-9999, divY, 9999, divY], stroke: '#3b82f6' });
+        }
+        if (Math.abs(y + h - divY) < SNAP_T) {
+          newY = divY - h;
+          lines.push({ points: [-9999, divY, 9999, divY], stroke: '#3b82f6' });
+        }
+      }
+    }
+
     node.position({ x: newX, y: newY });
     setSnapLines(lines);
-  }, [canvasHeight, canvasWidth, currentPage, getBoundingBox, items]);
+  }, [canvasHeight, canvasWidth, currentPage, getBoundingBox, items, splitSections]);
 
   const handleDragEnd = useCallback((e, item) => {
     setSnapLines([]);
@@ -554,6 +602,84 @@ export default function CanvasArea() {
                                   ))
                                 )}
                               </>
+                            )}
+
+                            {splitSections?.enabled && (splitSections?.showGuides || splitSections?.printCutLines) && (
+                              <Group listening={false}>
+                                {(() => {
+                                  const sRows = Math.min(6, Math.max(1, Number(splitSections.rows) || 1));
+                                  const sCols = Math.min(6, Math.max(1, Number(splitSections.cols) || 1));
+                                  if (sRows <= 1 && sCols <= 1) return null;
+
+                                  const cellW = canvasWidth / sCols;
+                                  const cellH = canvasHeight / sRows;
+                                  const elements = [];
+                                  const isCutLine = Boolean(splitSections.printCutLines);
+                                  const strokeColor = isCutLine ? '#111827' : '#0284c7';
+                                  const dashArray = (isCutLine && splitSections.cutLineStyle === 'solid') ? undefined : [6, 4];
+
+                                  for (let c = 1; c < sCols; c++) {
+                                    const x = Math.round(c * cellW);
+                                    elements.push(
+                                      <Line
+                                        key={`section-guide-v-${c}`}
+                                        points={[x, 0, x, canvasHeight]}
+                                        stroke={strokeColor}
+                                        strokeWidth={1}
+                                        dash={dashArray}
+                                        listening={false}
+                                      />
+                                    );
+                                  }
+
+                                  for (let r = 1; r < sRows; r++) {
+                                    const y = Math.round(r * cellH);
+                                    elements.push(
+                                      <Line
+                                        key={`section-guide-h-${r}`}
+                                        points={[0, y, canvasWidth, y]}
+                                        stroke={strokeColor}
+                                        strokeWidth={1}
+                                        dash={dashArray}
+                                        listening={false}
+                                      />
+                                    );
+                                  }
+
+                                  if (splitSections?.showGuides) {
+                                    let cellNum = 1;
+                                    for (let r = 0; r < sRows; r++) {
+                                      for (let c = 0; c < sCols; c++) {
+                                        const badgeX = c * cellW + 4;
+                                        const badgeY = r * cellH + 4;
+                                        const currentNum = cellNum++;
+                                        elements.push(
+                                          <Group key={`section-badge-${currentNum}`} x={badgeX} y={badgeY} opacity={0.7}>
+                                            <Rect
+                                              width={16}
+                                              height={14}
+                                              fill="#0284c7"
+                                              cornerRadius={2}
+                                            />
+                                            <Text
+                                              text={String(currentNum)}
+                                              fontSize={9}
+                                              fontStyle="bold"
+                                              fill="#ffffff"
+                                              width={16}
+                                              height={14}
+                                              align="center"
+                                              verticalAlign="middle"
+                                            />
+                                          </Group>
+                                        );
+                                      }
+                                    }
+                                  }
+
+                                  return elements;
+                                })()}
+                              </Group>
                             )}
 
                             {pageItems.map((item) => (

@@ -49,3 +49,58 @@ export const getPageLayout = (canvasState = {}, pageIndex = 0) => {
 
   return { pageIndex: targetPage, htmlContent: '', activeTemplate: null };
 };
+
+export const getItemSectionBounds = (item, canvasWidth, canvasHeight, splitSections) => {
+  if (!splitSections?.enabled) {
+    return { x: 0, y: 0, width: canvasWidth, height: canvasHeight, isSection: false };
+  }
+  const rows = Math.min(6, Math.max(1, Number(splitSections.rows) || 1));
+  const cols = Math.min(6, Math.max(1, Number(splitSections.cols) || 1));
+  if (rows <= 1 && cols <= 1) {
+    return { x: 0, y: 0, width: canvasWidth, height: canvasHeight, isSection: false };
+  }
+
+  const cellW = canvasWidth / cols;
+  const cellH = canvasHeight / rows;
+
+  const itemW = item?.width || 100;
+  const itemH = item?.height || 50;
+  const itemX = item?.x ?? 0;
+  const itemY = item?.y ?? 0;
+
+  let colIdx;
+  let rowIdx;
+
+  if (itemW >= canvasWidth) {
+    colIdx = Math.floor(itemX / cellW);
+  } else {
+    const cx = itemX + itemW / 2;
+    colIdx = Math.floor(cx / cellW);
+  }
+
+  if (itemH >= canvasHeight) {
+    rowIdx = Math.floor(itemY / cellH);
+  } else {
+    const cy = itemY + itemH / 2;
+    rowIdx = Math.floor(cy / cellH);
+  }
+
+  colIdx = Math.max(0, Math.min(cols - 1, colIdx || 0));
+  rowIdx = Math.max(0, Math.min(rows - 1, rowIdx || 0));
+
+  const startX = Math.round(colIdx * cellW);
+  const startY = Math.round(rowIdx * cellH);
+  const endX = Math.round((colIdx + 1) * cellW);
+  const endY = Math.round((rowIdx + 1) * cellH);
+
+  return {
+    x: startX,
+    y: startY,
+    width: endX - startX,
+    height: endY - startY,
+    colIndex: colIdx,
+    rowIndex: rowIdx,
+    isSection: true
+  };
+};
+

@@ -3,9 +3,10 @@ import { useStore } from '../store';
 import { useShallow } from 'zustand/react/shallow';
 import {
   AlignCenter, MoveHorizontal, Maximize2, Sliders, Printer, Database, Sparkles,
-  Plus, Bold, Italic, Underline
+  Plus, Bold, Italic, Underline, Grid, Copy
 } from 'lucide-react';
 import { calculateAutoFitItem } from '../utils/rendering';
+import { getItemSectionBounds } from '../utils/canvasPages';
 import { TEMPLATE_METADATA } from './templateStyles';
 import { apiFetch } from '../utils/apiClient';
 import BatchDataPanel from './BatchDataPanel';
@@ -129,7 +130,7 @@ const ToggleBtn = ({ icon: Icon, active, onClick, label }) => (
 );
 
 export default function PropertiesPanel() {
-  const { items, selectedId, updateItem, deleteItem, canvasWidth, canvasHeight, canvasBorder, setCanvasBorder, canvasBorderThickness, setCanvasBorderThickness, setCanvasGeometry, getMmToPx, getPxToMm, settings, updateSettingsAPI, fonts, uploadFont, isRotated, setIsRotated, splitMode, setSplitMode, printerProfile, selectedPrinter, selectedPrinterInfo, batchRecords, pageLayouts, currentPage, setHtmlContent, updateTemplateParams, ejectTemplate, isPropertiesOpen, toggleProperties } = useStore(useShallow((state) => ({
+  const { items, selectedId, updateItem, deleteItem, canvasWidth, canvasHeight, canvasBorder, setCanvasBorder, canvasBorderThickness, setCanvasBorderThickness, setCanvasGeometry, getMmToPx, getPxToMm, settings, updateSettingsAPI, fonts, uploadFont, isRotated, setIsRotated, splitMode, setSplitMode, splitSections, setSplitSections, replicateSection, printerProfile, selectedPrinter, selectedPrinterInfo, batchRecords, pageLayouts, currentPage, setHtmlContent, updateTemplateParams, ejectTemplate, isPropertiesOpen, toggleProperties } = useStore(useShallow((state) => ({
     items: state.items, selectedId: state.selectedId, updateItem: state.updateItem, deleteItem: state.deleteItem,
     canvasWidth: state.canvasWidth, canvasHeight: state.canvasHeight, canvasBorder: state.canvasBorder,
     setCanvasBorder: state.setCanvasBorder, canvasBorderThickness: state.canvasBorderThickness,
@@ -137,7 +138,8 @@ export default function PropertiesPanel() {
     getMmToPx: state.getMmToPx, getPxToMm: state.getPxToMm, settings: state.settings,
     updateSettingsAPI: state.updateSettingsAPI, fonts: state.fonts, uploadFont: state.uploadFont,
     isRotated: state.isRotated, setIsRotated: state.setIsRotated, splitMode: state.splitMode,
-    setSplitMode: state.setSplitMode, printerProfile: state.printerProfile, selectedPrinter: state.selectedPrinter,
+    setSplitMode: state.setSplitMode, splitSections: state.splitSections, setSplitSections: state.setSplitSections,
+    replicateSection: state.replicateSection, printerProfile: state.printerProfile, selectedPrinter: state.selectedPrinter,
     selectedPrinterInfo: state.selectedPrinterInfo, batchRecords: state.batchRecords,
     pageLayouts: state.pageLayouts, currentPage: state.currentPage, setHtmlContent: state.setHtmlContent,
     updateTemplateParams: state.updateTemplateParams, ejectTemplate: state.ejectTemplate,
@@ -216,6 +218,7 @@ export default function PropertiesPanel() {
 
   const handleCenterAbsolute = () => {
     if (!selectedItem) return;
+    const bounds = getItemSectionBounds(selectedItem, canvasWidth, canvasHeight, splitSections);
     const itemW = selectedItem.width || 0;
     
     let itemH = selectedItem.height || 0;
@@ -227,8 +230,8 @@ export default function PropertiesPanel() {
     }
     
     updateItem(selectedId, { 
-      x: (canvasWidth - itemW) / 2, 
-      y: (canvasHeight - itemH) / 2 
+      x: bounds.x + Math.round((bounds.width - itemW) / 2), 
+      y: bounds.y + Math.round((bounds.height - itemH) / 2) 
     });
   };
 
@@ -238,19 +241,20 @@ export default function PropertiesPanel() {
       useStore.getState().fitGroupToWidth();
       return;
     }
+    const bounds = getItemSectionBounds(selectedItem, canvasWidth, canvasHeight, splitSections);
     
     let newHeight = selectedItem.height;
     
     if (selectedItem.type === 'qrcode') {
-      newHeight = canvasWidth;
+      newHeight = bounds.width;
     } else if (selectedItem.type === 'image' && selectedItem.width && selectedItem.height) {
       const ratio = selectedItem.width / selectedItem.height;
-      newHeight = Math.round(canvasWidth / ratio);
+      newHeight = Math.round(bounds.width / ratio);
     }
     
     updateItem(selectedId, {
-      x: 0,
-      width: canvasWidth,
+      x: bounds.x,
+      width: bounds.width,
       height: newHeight,
       align: 'center'
     });
@@ -258,12 +262,13 @@ export default function PropertiesPanel() {
 
   const handleFitToWidth = () => {
     if (!selectedItem || !selectedItem.text) return;
+    const bounds = getItemSectionBounds(selectedItem, canvasWidth, canvasHeight, splitSections);
 
     const optimized = calculateAutoFitItem(
       { ...selectedItem, fit_to_width: true },
       batchRecords,
-      canvasWidth,
-      canvasHeight
+      bounds.width,
+      bounds.height
     );
 
     updateItem(selectedId, {
@@ -447,7 +452,7 @@ export default function PropertiesPanel() {
                   onChange={(e) => !isPreCut && setSplitMode(e.target.checked)}
                   disabled={isPreCut}
                 />
-                Oversize / Split Print Mode {isPreCut && '(Disabled for Pre-cut Media)'}
+                Oversize Multi-strip Poster {isPreCut && '(Continuous Tape Only)'}
               </label>
               
               {splitMode && !isPreCut && (
@@ -480,8 +485,180 @@ export default function PropertiesPanel() {
                 />
               </div>
             </div>
-            
-            <div className="space-y-4 mt-4">
+
+            {/* === SUB-DIVIDE / MULTI-SECTION GRID === */}
+            <div className="space-y-4 mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+              <div className="flex items-center justify-between pb-2 border-b border-neutral-100 dark:border-neutral-800">
+                <div className="flex items-center gap-2">
+                  <Grid size={16} className="text-blue-500" />
+                  <h2 className="text-lg font-serif tracking-tight text-neutral-900 dark:text-white">Sub-divide Label</h2>
+                </div>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded">
+                  Grid Sections
+                </span>
+              </div>
+              <p className="text-[10px] text-neutral-500 leading-tight">
+                Divide your single label into multiple smaller sections (e.g. 2×2 grid) to print multiple mini-labels on one physical sticker.
+              </p>
+
+              <label className="flex items-center gap-2 text-xs font-bold text-neutral-700 dark:text-neutral-300 cursor-pointer border px-3 py-2 border-neutral-200 dark:border-neutral-800 rounded hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors w-full">
+                <input
+                  type="checkbox"
+                  checked={splitSections?.enabled || false}
+                  onChange={(e) => setSplitSections({ enabled: e.target.checked })}
+                />
+                Enable Sub-divided Sections
+              </label>
+
+              {splitSections?.enabled && (
+                <div className="space-y-3 bg-neutral-50/70 dark:bg-neutral-900/50 p-3 rounded border border-neutral-200/80 dark:border-neutral-800">
+                  {/* Quick Layout Presets */}
+                  <div>
+                    <label className={labelClass}>Quick Presets</label>
+                    <div className="grid grid-cols-5 gap-1.5 mt-1">
+                      {[
+                        { label: '1 × 2', r: 1, c: 2 },
+                        { label: '2 × 1', r: 2, c: 1 },
+                        { label: '2 × 2', r: 2, c: 2 },
+                        { label: '1 × 3', r: 1, c: 3 },
+                        { label: '3 × 1', r: 3, c: 1 },
+                      ].map((preset) => {
+                        const isSelected = splitSections.rows === preset.r && splitSections.cols === preset.c;
+                        return (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => setSplitSections({ rows: preset.r, cols: preset.c })}
+                            className={`py-1.5 text-xs font-mono font-semibold rounded border transition-colors ${
+                              isSelected
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'bg-white dark:bg-neutral-950 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Rows and Columns Steppers */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Columns (Horizontal)</label>
+                      <div className="flex items-center gap-1 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSplitSections({ cols: Math.max(1, (splitSections.cols || 1) - 1) })}
+                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded font-bold dark:text-white"
+                        >
+                          -
+                        </button>
+                        <span className="flex-1 text-center text-sm font-semibold font-mono dark:text-white">
+                          {splitSections.cols || 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSplitSections({ cols: Math.min(6, (splitSections.cols || 1) + 1) })}
+                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded font-bold dark:text-white"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Rows (Vertical)</label>
+                      <div className="flex items-center gap-1 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSplitSections({ rows: Math.max(1, (splitSections.rows || 1) - 1) })}
+                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded font-bold dark:text-white"
+                        >
+                          -
+                        </button>
+                        <span className="flex-1 text-center text-sm font-semibold font-mono dark:text-white">
+                          {splitSections.rows || 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSplitSections({ rows: Math.min(6, (splitSections.rows || 1) + 1) })}
+                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded font-bold dark:text-white"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section Size Readout */}
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded text-[11px] text-blue-900 dark:text-blue-300 flex items-center justify-between">
+                    <span>Each section:</span>
+                    <span className="font-mono font-bold">
+                      {(parseFloat(getPxToMm(canvasWidth)) / (splitSections.cols || 1)).toFixed(1)} × {(parseFloat(getPxToMm(canvasHeight)) / (splitSections.rows || 1)).toFixed(1)} mm
+                    </span>
+                    <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                      ({(splitSections.cols || 1) * (splitSections.rows || 1)} total)
+                    </span>
+                  </div>
+
+                  {/* Cut Lines and Guides */}
+                  <div className="space-y-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
+                    <label className={labelClass}>Cut Lines & Visual Guides</label>
+                    <label className="flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={splitSections?.printCutLines ?? false}
+                        onChange={(e) => setSplitSections({ printCutLines: e.target.checked })}
+                      />
+                      <span>Print Cut Lines on Label</span>
+                    </label>
+
+                    {splitSections?.printCutLines && (
+                      <div className="pl-5 pt-1">
+                        <label className="block text-[10px] text-neutral-500 uppercase font-semibold mb-1">
+                          Cut Line Style
+                        </label>
+                        <select
+                          value={splitSections?.cutLineStyle || 'dashed'}
+                          onChange={(e) => setSplitSections({ cutLineStyle: e.target.value })}
+                          className={inputClass}
+                        >
+                          <option value="dashed">Dashed Line (- - -)</option>
+                          <option value="solid">Solid Thin Line (───)</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <label className="flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={splitSections?.showGuides ?? true}
+                        onChange={(e) => setSplitSections({ showGuides: e.target.checked })}
+                      />
+                      <span>Show Visual Guides & Numbers on Canvas</span>
+                    </label>
+                  </div>
+
+                  {/* Duplicate / Replicate Section 1 */}
+                  <div className="pt-2 border-t border-neutral-200 dark:border-neutral-800">
+                    <button
+                      type="button"
+                      onClick={() => replicateSection(0)}
+                      className="w-full flex items-center justify-center gap-2 bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 py-2 px-3 rounded text-xs font-semibold transition-colors"
+                      title="Duplicate elements inside section 1 to all other sections"
+                    >
+                      <Copy size={14} />
+                      Duplicate Section 1 to All
+                    </button>
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-1 text-center">
+                      Design section 1, then clone it to fill all sections with 1 click.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4 mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-800">
               <h2 className="text-lg font-serif tracking-tight text-neutral-900 dark:text-white pb-2 border-b border-neutral-100 dark:border-neutral-800">Canvas Styling</h2>
               <div className="flex gap-4">
                 <div className="flex flex-col justify-end flex-1">
@@ -502,7 +679,6 @@ export default function PropertiesPanel() {
                 />
               </div>
             </div>
-
 
             <div className="space-y-4 mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-800">
               <h2 className="text-lg font-serif tracking-tight text-neutral-900 dark:text-white pb-2 border-b border-neutral-100 dark:border-neutral-800">Duplicate Label</h2>
@@ -966,8 +1142,12 @@ export default function PropertiesPanel() {
                     </label>
                     {selectedItem.fit_to_width && (
                       <label className="col-span-2 flex items-center gap-2 text-[10px] uppercase font-bold text-neutral-500 cursor-pointer bg-neutral-50 dark:bg-neutral-900 p-2 border border-neutral-200 dark:border-neutral-800 mt-1">
-                        <input type="checkbox" checked={selectedItem.batch_scale_mode === 'individual'} onChange={(e) => updateItem(selectedId, { batch_scale_mode: e.target.checked ? 'individual' : 'uniform' })} />
-                        Scale Individually (Varies per record)
+                        <input
+                          type="checkbox"
+                          checked={selectedItem.batch_scale_mode === 'individual' || (splitSections?.enabled && selectedItem.batch_scale_mode !== 'uniform')}
+                          onChange={(e) => updateItem(selectedId, { batch_scale_mode: e.target.checked ? 'individual' : 'uniform' })}
+                        />
+                        Scale Individually (Varies per record / section)
                       </label>
                     )}
                   </div>

@@ -1,0 +1,372 @@
+2026-09-09 18:30:16,019 - INFO - [Niimbot] Attempting native BLE connection to C5:C7:A7:07:04:69...
+2026-09-09 18:30:16,600 - DEBUG - [Niimbot] Bound to RX (notify): bef8d6c9-9c21-4c9e-b632-bd58c1009f9f | TX (write): bef8d6c9-9c21-4c9e-b632-bd58c1009f9f
+2026-09-09 18:30:16,658 - INFO - [Niimbot] Executing initial hardware handshake...
+2026-09-09 18:30:16,658 - DEBUG - [Niimbot] Sending cmd 220 (payload: 01)
+2026-09-09 18:30:16,674 - DEBUG - [Niimbot] Cmd 220 ACK'd. Response: 106700650065324d0104
+2026-09-09 18:30:16,674 - DEBUG - [Niimbot] Sending cmd 64 (payload: 0b)
+2026-09-09 18:30:16,688 - DEBUG - [Niimbot] Unsolicited packet received: type=75, data=48393133303730343639
+2026-09-09 18:30:17,685 - WARNING - [Niimbot] Cmd 64 TIMED OUT after 1.0s.
+2026-09-09 18:30:17,685 - INFO - [Niimbot] Connected successfully.
+2026-09-09 18:30:17,685 - INFO - [Niimbot] Starting batch print job for 1 image(s)...
+2026-09-09 18:30:17,685 - INFO - [Niimbot] Niimbot print: model=D110_M, protocol_variant=b1, is_b1_family=True, print_width_px=96, density=3, total_pages=1
+2026-09-09 18:30:17,685 - DEBUG - [Niimbot] Sending cmd 33 (payload: 03)
+2026-09-09 18:30:17,701 - DEBUG - [Niimbot] Unsolicited packet received: type=49, data=01
+2026-09-09 18:30:18,696 - WARNING - [Niimbot] Cmd 33 TIMED OUT after 1.0s.
+2026-09-09 18:30:18,696 - DEBUG - [Niimbot] Sending cmd 35 (payload: 01)
+2026-09-09 18:30:18,713 - DEBUG - [Niimbot] Unsolicited packet received: type=51, data=01
+2026-09-09 18:30:19,708 - WARNING - [Niimbot] Cmd 35 TIMED OUT after 1.0s.
+2026-09-09 18:30:19,708 - DEBUG - [Niimbot] Sending cmd 1 (payload: 00010000000001)
+2026-09-09 18:30:19,742 - DEBUG - [Niimbot] Cmd 1 ACK'd. Response: 01
+2026-09-09 18:30:19,742 - INFO - [Niimbot] --- Printing label 1 of 1 ---
+2026-09-09 18:30:19,744 - DEBUG - [Niimbot] Sending cmd 3 (payload: 01)
+2026-09-09 18:30:19,756 - DEBUG - [Niimbot] Cmd 3 ACK'd. Response: 01
+2026-09-09 18:30:19,756 - DEBUG - [Niimbot] Sending cmd 19 (payload: 010000600001)
+2026-09-09 18:30:19,771 - DEBUG - [Niimbot] Cmd 19 ACK'd. Response: 0100
+2026-09-09 18:30:19,771 - DEBUG - [Niimbot] Streaming 256 rows of raster data (width=96px, 12B/row)...
+2026-09-09 18:30:23,483 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00c701
+2026-09-09 18:30:24,340 - DEBUG - [Niimbot] Row streaming complete. Ending page...
+2026-09-09 18:30:24,340 - DEBUG - [Niimbot] Sending cmd 227 (payload: 01)
+2026-09-09 18:30:24,346 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00ff01
+2026-09-09 18:30:24,354 - DEBUG - [Niimbot] Cmd 227 ACK'd. Response: 01
+2026-09-09 18:30:24,354 - DEBUG - [Niimbot] Waiting for physical printer to finish printing page 1...
+2026-09-09 18:30:24,354 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:24,368 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000000022270001
+2026-09-09 18:30:24,368 - DEBUG - [Niimbot] Printer status: page=0/1, print=0%, feed=0%
+2026-09-09 18:30:24,668 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:24,684 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000000022270001
+2026-09-09 18:30:24,684 - DEBUG - [Niimbot] Printer status: page=0/1, print=0%, feed=0%
+2026-09-09 18:30:24,984 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:24,998 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000000022270001
+2026-09-09 18:30:24,998 - DEBUG - [Niimbot] Printer status: page=0/1, print=0%, feed=0%
+2026-09-09 18:30:25,298 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:25,313 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00001500225e0001
+2026-09-09 18:30:25,313 - DEBUG - [Niimbot] Printer status: page=0/1, print=21%, feed=0%
+2026-09-09 18:30:25,614 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:25,628 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00002c0022990001
+2026-09-09 18:30:25,628 - DEBUG - [Niimbot] Printer status: page=0/1, print=44%, feed=0%
+2026-09-09 18:30:25,928 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:25,943 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000430022d50001
+2026-09-09 18:30:25,943 - DEBUG - [Niimbot] Printer status: page=0/1, print=67%, feed=0%
+2026-09-09 18:30:26,243 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:26,258 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00005b0023110001
+2026-09-09 18:30:26,258 - DEBUG - [Niimbot] Printer status: page=0/1, print=91%, feed=0%
+2026-09-09 18:30:26,558 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:26,573 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000641e23260001
+2026-09-09 18:30:26,573 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=30%
+2026-09-09 18:30:26,874 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:26,888 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000644d23260001
+2026-09-09 18:30:26,888 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=77%
+2026-09-09 18:30:27,188 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:30:27,204 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260001
+2026-09-09 18:30:27,204 - DEBUG - [Niimbot] Printer status: page=1/1, print=100%, feed=100%
+2026-09-09 18:30:27,204 - DEBUG - [Niimbot] Page 1 finished (feed: 100%).
+2026-09-09 18:30:27,204 - INFO - [Niimbot] Finishing print session...
+2026-09-09 18:30:27,204 - DEBUG - [Niimbot] Sending cmd 243 (payload: 01)
+2026-09-09 18:30:27,218 - DEBUG - [Niimbot] Cmd 243 ACK'd. Response: 01
+2026-09-09 18:30:27,218 - DEBUG - [Niimbot] Printer confirmed END_PRINT.
+2026-09-09 18:30:27,719 - INFO - [Niimbot] Disconnecting...
+2026-09-09 18:45:29,297 - INFO - [Niimbot] Attempting native BLE connection to C5:C7:A7:07:04:69...
+2026-09-09 18:45:30,192 - DEBUG - [Niimbot] Bound to RX (notify): bef8d6c9-9c21-4c9e-b632-bd58c1009f9f | TX (write): bef8d6c9-9c21-4c9e-b632-bd58c1009f9f
+2026-09-09 18:45:30,250 - INFO - [Niimbot] Executing initial hardware handshake...
+2026-09-09 18:45:30,250 - DEBUG - [Niimbot] Sending cmd 220 (payload: 01)
+2026-09-09 18:45:30,266 - DEBUG - [Niimbot] Cmd 220 ACK'd. Response: 105d00650065324d0104
+2026-09-09 18:45:30,266 - DEBUG - [Niimbot] Sending cmd 64 (payload: 0b)
+2026-09-09 18:45:30,281 - DEBUG - [Niimbot] Unsolicited packet received: type=75, data=48393133303730343639
+2026-09-09 18:45:31,277 - WARNING - [Niimbot] Cmd 64 TIMED OUT after 1.0s.
+2026-09-09 18:45:31,277 - INFO - [Niimbot] Connected successfully.
+2026-09-09 18:45:31,277 - INFO - [Niimbot] Starting batch print job for 1 image(s)...
+2026-09-09 18:45:31,277 - INFO - [Niimbot] Niimbot print: model=D110_M, protocol_variant=b1, is_b1_family=True, print_width_px=96, density=3, total_pages=1
+2026-09-09 18:45:31,278 - DEBUG - [Niimbot] Sending cmd 33 (payload: 03)
+2026-09-09 18:45:31,292 - DEBUG - [Niimbot] Unsolicited packet received: type=49, data=01
+2026-09-09 18:45:32,288 - WARNING - [Niimbot] Cmd 33 TIMED OUT after 1.0s.
+2026-09-09 18:45:32,288 - DEBUG - [Niimbot] Sending cmd 35 (payload: 01)
+2026-09-09 18:45:32,305 - DEBUG - [Niimbot] Unsolicited packet received: type=51, data=01
+2026-09-09 18:45:33,299 - WARNING - [Niimbot] Cmd 35 TIMED OUT after 1.0s.
+2026-09-09 18:45:33,299 - DEBUG - [Niimbot] Sending cmd 1 (payload: 00010000000001)
+2026-09-09 18:45:33,332 - DEBUG - [Niimbot] Cmd 1 ACK'd. Response: 01
+2026-09-09 18:45:33,332 - INFO - [Niimbot] --- Printing label 1 of 1 ---
+2026-09-09 18:45:33,334 - DEBUG - [Niimbot] Sending cmd 3 (payload: 01)
+2026-09-09 18:45:33,347 - DEBUG - [Niimbot] Cmd 3 ACK'd. Response: 01
+2026-09-09 18:45:33,347 - DEBUG - [Niimbot] Sending cmd 19 (payload: 010000600001)
+2026-09-09 18:45:33,362 - DEBUG - [Niimbot] Cmd 19 ACK'd. Response: 0100
+2026-09-09 18:45:33,362 - DEBUG - [Niimbot] Streaming 256 rows of raster data (width=96px, 12B/row)...
+2026-09-09 18:45:37,142 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00c701
+2026-09-09 18:45:38,159 - DEBUG - [Niimbot] Row streaming complete. Ending page...
+2026-09-09 18:45:38,159 - DEBUG - [Niimbot] Sending cmd 227 (payload: 01)
+2026-09-09 18:45:38,162 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00ff01
+2026-09-09 18:45:38,178 - DEBUG - [Niimbot] Cmd 227 ACK'd. Response: 01
+2026-09-09 18:45:38,178 - DEBUG - [Niimbot] Waiting for physical printer to finish printing page 1...
+2026-09-09 18:45:38,178 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:38,193 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000646422270001
+2026-09-09 18:45:38,193 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=100%
+2026-09-09 18:45:38,493 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:38,507 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000646422270001
+2026-09-09 18:45:38,507 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=100%
+2026-09-09 18:45:38,807 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:38,822 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000000022280001
+2026-09-09 18:45:38,822 - DEBUG - [Niimbot] Printer status: page=0/1, print=0%, feed=0%
+2026-09-09 18:45:39,122 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:39,137 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000170022620001
+2026-09-09 18:45:39,137 - DEBUG - [Niimbot] Printer status: page=0/1, print=23%, feed=0%
+2026-09-09 18:45:39,437 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:39,452 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00002e00229d0001
+2026-09-09 18:45:39,452 - DEBUG - [Niimbot] Printer status: page=0/1, print=46%, feed=0%
+2026-09-09 18:45:39,752 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:39,767 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000450022d90001
+2026-09-09 18:45:39,767 - DEBUG - [Niimbot] Printer status: page=0/1, print=69%, feed=0%
+2026-09-09 18:45:40,067 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:40,082 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00005c0023150001
+2026-09-09 18:45:40,082 - DEBUG - [Niimbot] Printer status: page=0/1, print=92%, feed=0%
+2026-09-09 18:45:40,382 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:40,397 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000642423260001
+2026-09-09 18:45:40,397 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=36%
+2026-09-09 18:45:40,697 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:40,712 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000645723260001
+2026-09-09 18:45:40,712 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=87%
+2026-09-09 18:45:41,012 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:45:41,042 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260000
+2026-09-09 18:45:41,042 - DEBUG - [Niimbot] Printer status: page=1/1, print=100%, feed=100%
+2026-09-09 18:45:41,042 - DEBUG - [Niimbot] Page 1 finished (feed: 100%).
+2026-09-09 18:45:41,042 - INFO - [Niimbot] Finishing print session...
+2026-09-09 18:45:41,042 - DEBUG - [Niimbot] Sending cmd 243 (payload: 01)
+2026-09-09 18:45:41,057 - DEBUG - [Niimbot] Cmd 243 ACK'd. Response: 01
+2026-09-09 18:45:41,057 - DEBUG - [Niimbot] Printer confirmed END_PRINT.
+2026-09-09 18:45:41,558 - INFO - [Niimbot] Disconnecting...
+2026-09-09 18:47:07,580 - INFO - [Niimbot] Attempting native BLE connection to C5:C7:A7:07:04:69...
+2026-09-09 18:47:09,113 - DEBUG - [Niimbot] Bound to RX (notify): bef8d6c9-9c21-4c9e-b632-bd58c1009f9f | TX (write): bef8d6c9-9c21-4c9e-b632-bd58c1009f9f
+2026-09-09 18:47:09,169 - INFO - [Niimbot] Executing initial hardware handshake...
+2026-09-09 18:47:09,169 - DEBUG - [Niimbot] Sending cmd 220 (payload: 01)
+2026-09-09 18:47:09,191 - DEBUG - [Niimbot] Cmd 220 ACK'd. Response: 105800650065324d0104
+2026-09-09 18:47:09,191 - DEBUG - [Niimbot] Sending cmd 64 (payload: 0b)
+2026-09-09 18:47:09,206 - DEBUG - [Niimbot] Unsolicited packet received: type=75, data=48393133303730343639
+2026-09-09 18:47:10,202 - WARNING - [Niimbot] Cmd 64 TIMED OUT after 1.0s.
+2026-09-09 18:47:10,202 - INFO - [Niimbot] Connected successfully.
+2026-09-09 18:47:10,202 - INFO - [Niimbot] Starting batch print job for 1 image(s)...
+2026-09-09 18:47:10,202 - INFO - [Niimbot] Niimbot print: model=D110_M, protocol_variant=b1, is_b1_family=True, print_width_px=96, density=3, total_pages=1
+2026-09-09 18:47:10,202 - DEBUG - [Niimbot] Sending cmd 33 (payload: 03)
+2026-09-09 18:47:10,226 - DEBUG - [Niimbot] Unsolicited packet received: type=49, data=01
+2026-09-09 18:47:11,213 - WARNING - [Niimbot] Cmd 33 TIMED OUT after 1.0s.
+2026-09-09 18:47:11,213 - DEBUG - [Niimbot] Sending cmd 35 (payload: 01)
+2026-09-09 18:47:11,232 - DEBUG - [Niimbot] Unsolicited packet received: type=51, data=01
+2026-09-09 18:47:12,224 - WARNING - [Niimbot] Cmd 35 TIMED OUT after 1.0s.
+2026-09-09 18:47:12,224 - DEBUG - [Niimbot] Sending cmd 1 (payload: 00010000000001)
+2026-09-09 18:47:12,252 - DEBUG - [Niimbot] Cmd 1 ACK'd. Response: 01
+2026-09-09 18:47:12,252 - INFO - [Niimbot] --- Printing label 1 of 1 ---
+2026-09-09 18:47:12,254 - DEBUG - [Niimbot] Sending cmd 3 (payload: 01)
+2026-09-09 18:47:12,266 - DEBUG - [Niimbot] Cmd 3 ACK'd. Response: 01
+2026-09-09 18:47:12,266 - DEBUG - [Niimbot] Sending cmd 19 (payload: 014000600001)
+2026-09-09 18:47:12,281 - DEBUG - [Niimbot] Cmd 19 ACK'd. Response: 0100
+2026-09-09 18:47:12,281 - DEBUG - [Niimbot] Streaming 320 rows of raster data (width=96px, 12B/row)...
+2026-09-09 18:47:16,068 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00c701
+2026-09-09 18:47:18,276 - DEBUG - [Niimbot] Row streaming complete. Ending page...
+2026-09-09 18:47:18,276 - DEBUG - [Niimbot] Sending cmd 227 (payload: 01)
+2026-09-09 18:47:18,281 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=013f01
+2026-09-09 18:47:18,289 - DEBUG - [Niimbot] Cmd 227 ACK'd. Response: 01
+2026-09-09 18:47:18,289 - DEBUG - [Niimbot] Waiting for physical printer to finish printing page 1...
+2026-09-09 18:47:18,289 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:18,311 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000646421e70001
+2026-09-09 18:47:18,311 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=100%
+2026-09-09 18:47:18,611 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:18,627 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000646421e70001
+2026-09-09 18:47:18,627 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=100%
+2026-09-09 18:47:18,927 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:18,941 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000000021e80001
+2026-09-09 18:47:18,941 - DEBUG - [Niimbot] Printer status: page=0/1, print=0%, feed=0%
+2026-09-09 18:47:19,241 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:19,257 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000120022210001
+2026-09-09 18:47:19,257 - DEBUG - [Niimbot] Printer status: page=0/1, print=18%, feed=0%
+2026-09-09 18:47:19,557 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:19,571 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00002400225c0001
+2026-09-09 18:47:19,571 - DEBUG - [Niimbot] Printer status: page=0/1, print=36%, feed=0%
+2026-09-09 18:47:19,871 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:19,887 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000370022980001
+2026-09-09 18:47:19,887 - DEBUG - [Niimbot] Printer status: page=0/1, print=55%, feed=0%
+2026-09-09 18:47:20,187 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:20,201 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000490022d30001
+2026-09-09 18:47:20,201 - DEBUG - [Niimbot] Printer status: page=0/1, print=73%, feed=0%
+2026-09-09 18:47:20,501 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:20,516 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00005c00230e0001
+2026-09-09 18:47:20,516 - DEBUG - [Niimbot] Printer status: page=0/1, print=92%, feed=0%
+2026-09-09 18:47:20,817 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:20,831 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000643c23260001
+2026-09-09 18:47:20,831 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=60%
+2026-09-09 18:47:21,131 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 18:47:21,146 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260001
+2026-09-09 18:47:21,146 - DEBUG - [Niimbot] Printer status: page=1/1, print=100%, feed=100%
+2026-09-09 18:47:21,146 - DEBUG - [Niimbot] Page 1 finished (feed: 100%).
+2026-09-09 18:47:21,146 - INFO - [Niimbot] Finishing print session...
+2026-09-09 18:47:21,146 - DEBUG - [Niimbot] Sending cmd 243 (payload: 01)
+2026-09-09 18:47:21,207 - DEBUG - [Niimbot] Cmd 243 ACK'd. Response: 01
+2026-09-09 18:47:21,207 - DEBUG - [Niimbot] Printer confirmed END_PRINT.
+2026-09-09 18:47:21,708 - INFO - [Niimbot] Disconnecting...
+2026-09-09 19:17:40,353 - INFO - [Niimbot] Attempting native BLE connection to C5:C7:A7:07:04:69...
+2026-09-09 19:17:41,392 - DEBUG - [Niimbot] Bound to RX (notify): bef8d6c9-9c21-4c9e-b632-bd58c1009f9f | TX (write): bef8d6c9-9c21-4c9e-b632-bd58c1009f9f
+2026-09-09 19:17:41,451 - INFO - [Niimbot] Executing initial hardware handshake...
+2026-09-09 19:17:41,451 - DEBUG - [Niimbot] Sending cmd 220 (payload: 01)
+2026-09-09 19:17:41,465 - DEBUG - [Niimbot] Cmd 220 ACK'd. Response: 104400650065324d0104
+2026-09-09 19:17:41,465 - DEBUG - [Niimbot] Sending cmd 64 (payload: 0b)
+2026-09-09 19:17:41,480 - DEBUG - [Niimbot] Unsolicited packet received: type=75, data=48393133303730343639
+2026-09-09 19:17:42,475 - WARNING - [Niimbot] Cmd 64 TIMED OUT after 1.0s.
+2026-09-09 19:17:42,475 - INFO - [Niimbot] Connected successfully.
+2026-09-09 19:17:42,476 - INFO - [Niimbot] Starting batch print job for 9 image(s)...
+2026-09-09 19:17:42,476 - INFO - [Niimbot] Niimbot print: model=D110_M, protocol_variant=b1, is_b1_family=True, print_width_px=96, density=3, total_pages=9
+2026-09-09 19:17:42,476 - DEBUG - [Niimbot] Sending cmd 33 (payload: 03)
+2026-09-09 19:17:42,493 - DEBUG - [Niimbot] Unsolicited packet received: type=49, data=01
+2026-09-09 19:17:43,487 - WARNING - [Niimbot] Cmd 33 TIMED OUT after 1.0s.
+2026-09-09 19:17:43,487 - DEBUG - [Niimbot] Sending cmd 35 (payload: 01)
+2026-09-09 19:17:43,505 - DEBUG - [Niimbot] Unsolicited packet received: type=51, data=01
+2026-09-09 19:17:44,498 - WARNING - [Niimbot] Cmd 35 TIMED OUT after 1.0s.
+2026-09-09 19:17:44,498 - DEBUG - [Niimbot] Sending cmd 1 (payload: 00090000000001)
+2026-09-09 19:17:44,526 - DEBUG - [Niimbot] Cmd 1 ACK'd. Response: 01
+2026-09-09 19:17:44,526 - INFO - [Niimbot] --- Printing label 1 of 9 ---
+2026-09-09 19:17:44,528 - DEBUG - [Niimbot] Sending cmd 3 (payload: 01)
+2026-09-09 19:17:44,541 - DEBUG - [Niimbot] Cmd 3 ACK'd. Response: 01
+2026-09-09 19:17:44,541 - DEBUG - [Niimbot] Sending cmd 19 (payload: 010000600001)
+2026-09-09 19:17:44,555 - DEBUG - [Niimbot] Cmd 19 ACK'd. Response: 0100
+2026-09-09 19:17:44,555 - DEBUG - [Niimbot] Streaming 256 rows of raster data (width=96px, 12B/row)...
+2026-09-09 19:17:47,855 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00c701
+2026-09-09 19:17:48,714 - DEBUG - [Niimbot] Row streaming complete. Ending page...
+2026-09-09 19:17:48,715 - DEBUG - [Niimbot] Sending cmd 227 (payload: 01)
+2026-09-09 19:17:48,725 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00ff01
+2026-09-09 19:17:48,733 - DEBUG - [Niimbot] Cmd 227 ACK'd. Response: 01
+2026-09-09 19:17:48,733 - DEBUG - [Niimbot] Waiting for physical printer to finish printing page 1...
+2026-09-09 19:17:48,733 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:48,748 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000646422270001
+2026-09-09 19:17:48,748 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=100%
+2026-09-09 19:17:49,049 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:49,063 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000646422270001
+2026-09-09 19:17:49,063 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=100%
+2026-09-09 19:17:49,363 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:49,378 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000000022280001
+2026-09-09 19:17:49,378 - DEBUG - [Niimbot] Printer status: page=0/1, print=0%, feed=0%
+2026-09-09 19:17:49,678 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:49,693 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000170022620001
+2026-09-09 19:17:49,693 - DEBUG - [Niimbot] Printer status: page=0/1, print=23%, feed=0%
+2026-09-09 19:17:49,993 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:50,009 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00002e00229f0001
+2026-09-09 19:17:50,009 - DEBUG - [Niimbot] Printer status: page=0/1, print=46%, feed=0%
+2026-09-09 19:17:50,309 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:50,323 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000460022db0001
+2026-09-09 19:17:50,323 - DEBUG - [Niimbot] Printer status: page=0/1, print=70%, feed=0%
+2026-09-09 19:17:50,623 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:50,638 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00005d0023170001
+2026-09-09 19:17:50,638 - DEBUG - [Niimbot] Printer status: page=0/1, print=93%, feed=0%
+2026-09-09 19:17:50,938 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:50,953 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000642523260001
+2026-09-09 19:17:50,953 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=37%
+2026-09-09 19:17:51,253 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:51,268 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0000645723260001
+2026-09-09 19:17:51,268 - DEBUG - [Niimbot] Printer status: page=0/1, print=100%, feed=87%
+2026-09-09 19:17:51,569 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:51,583 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260002
+2026-09-09 19:17:51,583 - DEBUG - [Niimbot] Printer status: page=1/1, print=100%, feed=100%
+2026-09-09 19:17:51,583 - DEBUG - [Niimbot] Page 1 finished (feed: 100%).
+2026-09-09 19:17:51,583 - INFO - [Niimbot] --- Printing label 2 of 9 ---
+2026-09-09 19:17:51,585 - DEBUG - [Niimbot] Sending cmd 3 (payload: 01)
+2026-09-09 19:17:51,598 - DEBUG - [Niimbot] Cmd 3 ACK'd. Response: 01
+2026-09-09 19:17:51,598 - DEBUG - [Niimbot] Sending cmd 19 (payload: 010000600001)
+2026-09-09 19:17:51,613 - DEBUG - [Niimbot] Cmd 19 ACK'd. Response: 0100
+2026-09-09 19:17:51,613 - DEBUG - [Niimbot] Streaming 256 rows of raster data (width=96px, 12B/row)...
+2026-09-09 19:17:55,026 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00c701
+2026-09-09 19:17:56,053 - DEBUG - [Niimbot] Row streaming complete. Ending page...
+2026-09-09 19:17:56,053 - DEBUG - [Niimbot] Sending cmd 227 (payload: 01)
+2026-09-09 19:17:56,069 - DEBUG - [Niimbot] Unsolicited packet received: type=211, data=00ff01
+2026-09-09 19:17:56,075 - DEBUG - [Niimbot] Cmd 227 ACK'd. Response: 01
+2026-09-09 19:17:56,075 - DEBUG - [Niimbot] Waiting for physical printer to finish printing page 2...
+2026-09-09 19:17:56,075 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:56,090 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001000022270001
+2026-09-09 19:17:56,090 - DEBUG - [Niimbot] Printer status: page=1/2, print=0%, feed=0%
+2026-09-09 19:17:56,390 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:56,406 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001170022620001
+2026-09-09 19:17:56,406 - DEBUG - [Niimbot] Printer status: page=1/2, print=23%, feed=0%
+2026-09-09 19:17:56,706 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:56,720 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00012e00229e0001
+2026-09-09 19:17:56,720 - DEBUG - [Niimbot] Printer status: page=1/2, print=46%, feed=0%
+2026-09-09 19:17:57,020 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:57,035 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001450022da0001
+2026-09-09 19:17:57,035 - DEBUG - [Niimbot] Printer status: page=1/2, print=69%, feed=0%
+2026-09-09 19:17:57,336 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:57,350 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 00015d0023160001
+2026-09-09 19:17:57,350 - DEBUG - [Niimbot] Printer status: page=1/2, print=93%, feed=0%
+2026-09-09 19:17:57,651 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:57,665 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001642423260501
+2026-09-09 19:17:57,665 - DEBUG - [Niimbot] Printer status: page=1/2, print=100%, feed=36%
+2026-09-09 19:17:57,965 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:57,981 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001645623260501
+2026-09-09 19:17:57,981 - DEBUG - [Niimbot] Printer status: page=1/2, print=100%, feed=86%
+2026-09-09 19:17:58,281 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:58,318 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260500
+2026-09-09 19:17:58,318 - DEBUG - [Niimbot] Printer status: page=1/2, print=100%, feed=100%
+2026-09-09 19:17:58,619 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:58,633 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260500
+2026-09-09 19:17:58,633 - DEBUG - [Niimbot] Printer status: page=1/2, print=100%, feed=100%
+2026-09-09 19:17:58,933 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:58,948 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260500
+2026-09-09 19:17:58,948 - DEBUG - [Niimbot] Printer status: page=1/2, print=100%, feed=100%
+2026-09-09 19:17:59,248 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:59,263 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260500
+2026-09-09 19:17:59,263 - DEBUG - [Niimbot] Printer status: page=1/2, print=100%, feed=100%
+2026-09-09 19:17:59,563 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:17:59,578 - DEBUG - [Niimbot] Cmd 163 ACK'd. Response: 0001646423260500
+2026-09-09 19:17:59,578 - DEBUG - [Niimbot] Printer status: page=1/2, print=100%, feed=100%
+2026-09-09 19:17:59,878 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:00,689 - WARNING - [Niimbot] Cmd 163 TIMED OUT after 0.8s.
+2026-09-09 19:18:00,989 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:01,802 - WARNING - [Niimbot] Cmd 163 TIMED OUT after 0.8s.
+2026-09-09 19:18:02,103 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:02,913 - WARNING - [Niimbot] Cmd 163 TIMED OUT after 0.8s.
+2026-09-09 19:18:03,214 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:04,025 - WARNING - [Niimbot] Cmd 163 TIMED OUT after 0.8s.
+2026-09-09 19:18:04,326 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:05,138 - WARNING - [Niimbot] Cmd 163 TIMED OUT after 0.8s.
+2026-09-09 19:18:05,438 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:05,438 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:05,739 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:05,739 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:06,040 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:06,040 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:06,340 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:06,340 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:06,641 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:06,641 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:06,941 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:06,941 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:07,242 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:07,242 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:07,542 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:07,542 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:07,843 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:07,843 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:08,144 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:08,144 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:08,444 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:08,444 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:08,745 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:08,745 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:09,045 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:09,045 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:09,346 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:09,346 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:09,646 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:09,646 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:09,947 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:09,947 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:10,248 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:10,248 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:10,548 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:10,548 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:10,849 - DEBUG - [Niimbot] Sending cmd 163 (payload: 01)
+2026-09-09 19:18:10,849 - ERROR - [Niimbot] Cmd 163 Error: BLE client disconnected during write.
+2026-09-09 19:18:11,149 - WARNING - [Niimbot] Status polling timed out after 15.0s for page 2. Proceeding...
+2026-09-09 19:18:11,149 - INFO - [Niimbot] --- Printing label 3 of 9 ---
+2026-09-09 19:18:11,151 - DEBUG - [Niimbot] Sending cmd 3 (payload: 01)
+2026-09-09 19:18:11,151 - ERROR - [Niimbot] Cmd 3 Error: BLE client disconnected during write.
+2026-09-09 19:18:11,151 - WARNING - [Niimbot] Printer rejected START_PAGE_PRINT. Forcing transmission...
+2026-09-09 19:18:11,151 - DEBUG - [Niimbot] Sending cmd 19 (payload: 010000600001)
+2026-09-09 19:18:11,151 - ERROR - [Niimbot] Cmd 19 Error: BLE client disconnected during write.
+2026-09-09 19:18:11,152 - DEBUG - [Niimbot] Streaming 256 rows of raster data (width=96px, 12B/row)...
+2026-09-09 19:18:11,152 - ERROR - [Niimbot] Print job FAILED: BLE client disconnected during write.
+2026-09-09 19:18:11,152 - INFO - [Niimbot] Aborting/cleaning up print session...
+2026-09-09 19:18:11,152 - DEBUG - [Niimbot] Sending cmd 243 (payload: 01)
+2026-09-09 19:18:11,152 - ERROR - [Niimbot] Cmd 243 Error: BLE client disconnected during write.
+2026-09-09 19:18:11,654 - INFO - [Niimbot] Disconnecting...

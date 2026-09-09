@@ -32,11 +32,12 @@ class NiimbotManifest(VendorManifest):
             "max_density": 5,
         }
         return [
-            {**base, "name": "D11/D110 (15mm)", "model_id": "D110", "width_px": 120, "width_mm": 15, "dpi": 203},
-            {**base, "name": "D101 (25mm)", "model_id": "D101", "width_px": 200, "width_mm": 25, "dpi": 203},
-            {**base, "name": "B18", "model_id": "B18", "width_px": 112, "width_mm": 14, "dpi": 203},
-            {**base, "name": "B1/B21", "model_id": "B1", "width_px": 384, "width_mm": 48, "dpi": 203},
-            {**base, "name": "B3S/B24", "model_id": "B3S", "width_px": 576, "width_mm": 72, "dpi": 203},
+            {**base, "name": "D110-M (15mm)", "model_id": "D110_M", "width_px": 96, "width_mm": 15, "dpi": 203, "protocol_variant": "b1"},
+            {**base, "name": "D11/D110 (15mm)", "model_id": "D110", "width_px": 96, "width_mm": 15, "dpi": 203, "protocol_variant": "d110"},
+            {**base, "name": "D101 (25mm)", "model_id": "D101", "width_px": 200, "width_mm": 25, "dpi": 203, "protocol_variant": "b1"},
+            {**base, "name": "B18", "model_id": "B18", "width_px": 112, "width_mm": 14, "dpi": 203, "protocol_variant": "b1"},
+            {**base, "name": "B1/B21", "model_id": "B1", "width_px": 384, "width_mm": 48, "dpi": 203, "protocol_variant": "b1"},
+            {**base, "name": "B3S/B24", "model_id": "B3S", "width_px": 576, "width_mm": 72, "dpi": 203, "protocol_variant": "b1"},
         ]
 
     def get_presets(self) -> List[Dict]:
@@ -54,6 +55,8 @@ class NiimbotManifest(VendorManifest):
         ]
 
     def _model_prefixes(self, model_id: str) -> tuple[str, ...]:
+        if model_id == "D110_M":
+            return ("D110_M", "D110M", "D110-M")
         if model_id == "D110":
             return ("D11", "D110")
         if model_id == "D101":

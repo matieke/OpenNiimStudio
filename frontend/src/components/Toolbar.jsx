@@ -103,20 +103,38 @@ export default function Toolbar() {
 
   const handleAddText = () => {
     const defaultFont = useStore.getState().settings.default_font || 'RobotoCondensed.ttf';
+    const splitSections = useStore.getState().splitSections;
+    const canvasHeight = useStore.getState().canvasHeight;
+    let targetW = canvasWidth;
+    let targetH = 40;
+    let targetX = 0;
+    let targetY = 50;
+
+    if (splitSections?.enabled) {
+      const rows = Math.min(6, Math.max(1, Number(splitSections.rows) || 1));
+      const cols = Math.min(6, Math.max(1, Number(splitSections.cols) || 1));
+      if (rows > 1 || cols > 1) {
+        targetW = Math.round(canvasWidth / cols);
+        targetH = Math.min(40, Math.round(canvasHeight / rows));
+        targetY = Math.round((canvasHeight / rows - targetH) / 2);
+      }
+    }
+
     addItem({
       id: Date.now().toString(),
       type: 'text',
       text: 'Text',
-      x: 0,
-      y: 50,
+      x: targetX,
+      y: targetY,
       size: 24,
       weight: 700,
       font: defaultFont,
-      width: canvasWidth,
-      height: 40,
+      width: targetW,
+      height: targetH,
       align: 'center',
       verticalAlign: 'middle',
-      padding: 0
+      padding: 0,
+      ...(splitSections?.enabled ? { batch_scale_mode: 'individual' } : {})
     });
   };
 

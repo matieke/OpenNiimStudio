@@ -71,4 +71,142 @@ describe('editor store correctness', () => {
     expect(useStore.getState().batchRecords).toHaveLength(1_000);
     expect(useStore.getState().pageLayouts[0].pageIndex).toBe(0);
   });
+
+  test('setSplitSections updates configuration and replicates section items accurately', () => {
+    useStore.setState({
+      canvasWidth: 400,
+      canvasHeight: 200,
+      currentPage: 0,
+      items: [
+        // Section 0 is (x: 0..200, y: 0..100). Place an item centered in cell 0
+        { id: 'item1', type: 'text', text: 'Sec1', x: 50, y: 30, width: 50, height: 20, pageIndex: 0 }
+      ]
+    });
+
+    useStore.getState().setSplitSections({
+      enabled: true,
+      rows: 2,
+      cols: 2,
+      printCutLines: true,
+      cutLineStyle: 'dashed',
+      showGuides: true
+    });
+
+    expect(useStore.getState().splitSections).toEqual({
+      enabled: true,
+      rows: 2,
+      cols: 2,
+      printCutLines: true,
+      cutLineStyle: 'dashed',
+      showGuides: true
+    });
+
+    // Replicate section 0 across the 2x2 grid (cells: (0,0), (0,1), (1,0), (1,1))
+    useStore.getState().replicateSection(0);
+
+    const items = useStore.getState().items;
+    expect(items).toHaveLength(4); // 1 original + 3 copies
+
+    // Verify cell 1 (col 1, row 0): dx = +200, dy = 0
+    const cell1Item = items.find(i => i.x === 250 && i.y === 30);
+    expect(cell1Item).toBeDefined();
+    expect(cell1Item.text).toBe('Sec1');
+
+    // Verify cell 2 (col 0, row 1): dx = 0, dy = +100
+    const cell2Item = items.find(i => i.x === 50 && i.y === 130);
+    expect(cell2Item).toBeDefined();
+
+    // Verify cell 3 (col 1, row 1): dx = +200, dy = +100
+    const cell3Item = items.find(i => i.x === 250 && i.y === 130);
+    expect(cell3Item).toBeDefined();
+  });
+
+  test('hydrates splitSections correctly from canvas_state', () => {
+    useStore.getState().hydrateCanvasState({
+      width: 384,
+      height: 240,
+      splitSections: {
+        enabled: true,
+        rows: 3,
+        cols: 1,
+        printCutLines: true,
+        cutLineStyle: 'solid',
+        showGuides: false
+      }
+    });
+
+    expect(useStore.getState().splitSections).toEqual({
+      enabled: true,
+      rows: 3,
+      cols: 1,
+      printCutLines: true,
+      cutLineStyle: 'solid',
+      showGuides: false
+    });
+  });
+
+  test('auto-fit calculates individual sizing independently from longest batch record', () => {
+    // Provide a lightweight 2d context mock for Konva text measurement in jsdom
+    HTMLCanvasElement.prototype.getContext = function () {
+      return {
+        canvas: this,
+        fillRect: () => {},
+        clearRect: () => {},
+        getImageData: (x, y, w, h) => ({ data: new Array(w * h * 4).fill(0) }),
+        putImageData: () => {},
+        createImageData: () => ({ data: [] }),
+        setTransform: () => {},
+        drawImage: () => {},
+        save: () => {},
+        fillText: () => {},
+        restore: () => {},
+        beginPath: () => {},
+        moveTo: () => {},
+        lineTo: () => {},
+        closePath: () => {},
+        stroke: () => {},
+        translate: () => {},
+        scale: () => {},
+        rotate: () => {},
+        arc: () => {},
+        fill: () => {},
+        measureText: (text) => ({
+          width: String(text).length * 10,
+          actualBoundingBoxAscent: 10,
+          actualBoundingBoxDescent: 2
+        }),
+        transform: () => {},
+        rect: () => {},
+        clip: () => {},
+      };
+    };
+
+    const { calculateAutoFitItem } = require('./utils/rendering');
+    const batchRecords = [
+      { name: 'Cat' },
+      { name: 'Supercalifragilisticexpialidocious Extra Long Value' }
+    ];
+
+    const uniformItem = {
+      type: 'text',
+      text: '{{name}}',
+      fit_to_width: true,
+      batch_scale_mode: 'uniform',
+      width: 200,
+      height: 100
+    };
+
+    const individualItem = {
+      ...uniformItem,
+      batch_scale_mode: 'individual'
+    };
+
+    const fittedUniform = calculateAutoFitItem(uniformItem, batchRecords, 400, 200);
+    const fittedIndividual = calculateAutoFitItem(individualItem, batchRecords, 400, 200);
+
+    // Uniform mode is clamped to the giant text in record 1
+    // Individual mode calculates record 0 ("Cat") without being clamped by record 1
+    expect(fittedIndividual.size).toBeGreaterThan(fittedUniform.size);
+  });
 });
+

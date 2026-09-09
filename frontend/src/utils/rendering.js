@@ -357,7 +357,16 @@ export const computeOptimalTextSize = (baseItem, textToFit, targetWidth, targetH
 
 export const calculateAutoFitItem = (item, batchRecords = [{}], canvasWidth = 384, canvasHeight = 384) => {
   if (!item?.fit_to_width) return item;
-  if (item.batch_scale_mode === 'individual') return item;
+  if (item.batch_scale_mode === 'individual') {
+    const baseText = applyVars(item.text, batchRecords[0] || {}) || item.text || '';
+    const resolvedW = resolveDim(item.width || 100, canvasWidth);
+    const resolvedH = resolveDim(item.height || 50, canvasHeight);
+    const pad = item.padding !== undefined ? Number(item.padding) : 0;
+    const targetWidth = Math.max(10, resolvedW - (pad * 2));
+    const targetHeight = Math.max(10, resolvedH - (pad * 2));
+    const bestSize = computeOptimalTextSize(item, baseText, targetWidth, targetHeight);
+    return { ...item, size: bestSize || item.size };
+  }
 
   const records = Array.isArray(batchRecords) && batchRecords.length > 0 ? batchRecords : [{}];
   const strings = records.map((record) => applyVars(item.text, record) || '');
