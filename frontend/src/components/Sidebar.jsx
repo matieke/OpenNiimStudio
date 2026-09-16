@@ -120,24 +120,11 @@ export default function Sidebar() {
     useStore.getState().fetchAddresses();
     useStore.getState().fetchPresets();
 
-    // If Firefox or Safari (non-Chromium), attempt background connect to local helper
+    // If non-Chromium or helper mode, silently probe if helper is already running
     if (!webBluetoothSupported) {
       connectBridge().then((res) => {
         if (res && res.success) {
           handleScanHelper();
-        } else {
-          launchBridgeViaProtocol();
-          let count = 0;
-          retryTimer = setInterval(async () => {
-            count++;
-            const retryRes = await connectBridge();
-            if (retryRes && retryRes.success) {
-              clearInterval(retryTimer);
-              handleScanHelper();
-            } else if (count >= 5) {
-              clearInterval(retryTimer);
-            }
-          }, 1000);
         }
       });
     }
