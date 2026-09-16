@@ -11,7 +11,6 @@ from .. import reporting
 _WARNED = False
 _REQUIREMENTS_PATH = Path(__file__).resolve().parents[2] / "requirements.txt"
 _IMPORT_NAMES = {
-    "google-cloud-aiplatform": "google.cloud.aiplatform",
     "python-multipart": "multipart",
 }
 
