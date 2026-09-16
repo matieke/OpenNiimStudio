@@ -1,162 +1,199 @@
 <div align="center">
   <img src="logo.webp" width="160" alt="CatLabel Logo">
   <h1>CatLabel Studio</h1>
+  <p><strong>Self-hosted web studio for portable Bluetooth thermal printers</strong></p>
+
+  <p>
+    <a href="https://forgejo.syncedmedia.be/matieke/OpenNiimStudio/releases"><img src="https://img.shields.io/badge/version-v0.2.0-blue.svg" alt="Version 0.2.0"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License"></a>
+    <a href="https://forgejo.syncedmedia.be/matieke/OpenNiimStudio"><img src="https://img.shields.io/badge/docker%20package-forgejo%20registry-orange.svg" alt="Docker Package"></a>
+  </p>
 </div>
 
-CatLabel is a local web application for designing and printing labels to portable Bluetooth thermal printers. 
+CatLabel Studio is a modern web application designed for creating, templating, and printing labels to portable Bluetooth thermal printers. 
 
-It is a fork of [TiMini Print](https://github.com/Dejniel/TiMini-Print). CatLabel moves the original CLI and Tkinter-based logic into a web interface built with FastAPI and React, while adding native support for Niimbot.
+Originally forked from [TiMini Print](https://github.com/Dejniel/TiMini-Print), CatLabel transforms the original desktop logic into a full-featured web studio built with **FastAPI**, **React 19**, and **Konva.js**, with native support for Niimbot, Phomemo, and generic thermal printers.
 
 https://github.com/user-attachments/assets/d7103905-7133-41c0-b20b-ee69727d9418
 
 ---
-<img width="1000" height="1115" alt="catlabel_print" src="https://github.com/user-attachments/assets/20a525d0-b6b4-4e8e-a743-ebb3ff5333ea" />
+
+## ✨ Key Features in v0.2
+
+* 📦 **Pre-built Docker Container Package**: Deploy instantly on your server, NAS, or Raspberry Pi using our pre-built image from the Forgejo Container Registry (`forgejo.syncedmedia.be/matieke/openniimstudio:latest`). No Git clone or local compilation required.
+* 📶 **Dual Bluetooth Architecture**:
+  * **Direct Web Bluetooth**: Connect straight from Chrome, Edge, or Android browsers with zero desktop software or drivers installed.
+  * **Local Print Helper (`catlabel-helper.py`)**: A lightweight background companion for Firefox, desktop Linux, or non-HTTPS remote server connections. Features automatic `catlabel://start` URL protocol handling and a 15-second idle auto-shutdown.
+* 🎯 **Strict Device Filtering**: Eliminates unwanted smart TVs, refrigerators, computers, and audio gadgets from Bluetooth scans—only verified thermal printers appear.
+* 🏷️ **Hardware RFID Roll Auto-Detection**: Real-time Niimbot RFID tag scanning. Automatically identifies the inserted roll barcode (e.g. 12x40mm), sets optimal landscape canvas dimensions, and tracks remaining label counts.
+* 🎨 **Hybrid Canvas & HTML/CSS Templating**: Combine visual drag-and-drop elements with flexible HTML/CSS layouts, dynamic `.auto-text` scaling, and thermal-tuned image dithering.
+* 🔢 **Variables & Batch Generation**: Print sequences (`BOX-001`), variable permutations, or bulk datasets imported directly from CSV spreadsheets.
+* 🤖 **AI Layout Assistant**: Integrated conversational AI assistant compatible with OpenAI, Google Gemini, Anthropic Claude, and local LLMs (Ollama / LM Studio).
 
 ---
 
-## Supported Printers
+## 🖨️ Supported Printers
 
-CatLabel communicates directly with portable thermal printers over Bluetooth. It supports many models that do not use standard ESC/POS commands.
+CatLabel communicates directly over Bluetooth Low Energy (BLE) and classic Bluetooth SPP:
 
-*   **Niimbot:** D-Series (D11, D110, D101), B-Series (B1, B21, B3S, B24, B18).
-*   **Phomemo:** M-Series (M02, M03, M04, M110, M200, M220), D-Series (D30), T02, P12, PM-241.
-*   **Generic:** 132 source-backed model records from the TiMini-Print v0.7.3 catalog across Tiny/Tiny-prefixed, Luck (including PPA2L/PPA2LH), V5G/V5X/V5C, Eleph HPRT ESC, Eleph TSPL, Instaprint Core, and Funny LX families. Detection uses advertised names and MAC constraints from the catalog; models owned by the separate Niimbot and Phomemo backends are not duplicated.
+* **Niimbot:** D-Series (D11, D110, D101), B-Series (B1, B21, B3S, B24, B18) with hardware RFID roll decoding.
+* **Phomemo:** M-Series (M02, M03, M04, M110, M200, M220), D-Series (D30), T02, P12, PM-241.
+* **Generic Thermal:** Over 130 source-backed model records across Tiny/Tiny-prefixed, Luck (including PPA2L/PPA2LH), V5G/V5X/V5C, Eleph HPRT ESC, Eleph TSPL, Instaprint Core, and Funny LX families.
 
 ---
 
-## Installation & Running
+## 🚀 Quick Start & Deployment
 
-CatLabel runs a local web server and opens the interface in your browser. On Windows, it manages a locked, isolated environment with a portable copy of Pixi, so it does not require a system Python or Node.js installation.
+### 1. Docker Container (Recommended for Servers & Self-Hosting)
 
-### Windows
-The easiest way to run CatLabel on Windows is using the standalone launcher.
-1. Download `CatLabel-Launcher.exe` from the [Releases](../../releases) page.
-2. Place it in an empty folder where you want the app to reside.
-3. Double-click the executable. It downloads the repository, a verified standalone Pixi executable, and the locked dependencies before starting the app.
+You do **not** need Git or source code on your server. Run CatLabel directly from the published container package:
 
-The launcher keeps the Pixi environment and cache inside the CatLabel folder. Run `catlabel\run.bat --install-headless` if you later want to add optional headless API rendering support.
+#### Standalone `docker-compose.yml`:
+Create a folder on your server and save this `docker-compose.yml`:
 
-https://github.com/user-attachments/assets/4e784645-0ccf-478c-a6e1-0c41a3519624
+```yaml
+services:
+  catlabel:
+    image: forgejo.syncedmedia.be/matieke/openniimstudio:latest
+    pull_policy: always
+    container_name: catlabel
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - catlabel_data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
 
-### macOS & Linux
-1. Clone or download this repository.
-2. Open a terminal in the repository folder.
-3. Run the bootstrap script: `chmod +x run.sh && ./run.sh`
-4. The script downloads Micromamba, installs the dependencies, and starts the server. The compiled frontend is included in the repository.
+volumes:
+  catlabel_data:
+    name: catlabel_data
+```
 
-*The app runs at [http://localhost:8000](http://localhost:8000).*
+Start the container:
+```bash
+docker compose up -d
+```
 
-### Docker (Server & Self-Hosted)
-CatLabel includes a production multi-stage `Dockerfile` and `docker-compose.yml` with persistent storage for your projects, templates, and fonts:
+Open `http://your-server-ip:8000` in your browser. All your saved designs, custom fonts, and SQLite database are permanently stored in the `catlabel_data` volume.
 
-1. Clone the repository on your server:
+#### Updating to New Releases:
+Because the package uses `:latest` with `pull_policy: always`, updating takes just two commands:
+```bash
+docker compose pull
+docker compose up -d
+```
+
+---
+
+### 2. Standalone Windows Launcher
+
+1. Download `CatLabel-Launcher.exe` from the [Releases](https://forgejo.syncedmedia.be/matieke/OpenNiimStudio/releases) page.
+2. Place it in a folder where you want the application to reside.
+3. Double-click the executable. It sets up an isolated environment and opens your browser.
+
+---
+
+### 3. Native Linux & macOS
+
+1. Clone the repository:
    ```bash
    git clone https://forgejo.syncedmedia.be/matieke/OpenNiimStudio.git catlabel
    cd catlabel
    ```
-2. Start the container:
+2. Run the bootstrap script:
    ```bash
-   docker compose up -d --build
+   chmod +x run.sh && ./run.sh
    ```
-3. Open `http://your-server-ip:8000` in your browser.
-
-> **Note on Bluetooth & HTTPS**:
-> Modern browsers (Chrome, Edge) require a secure HTTPS origin to access the **Web Bluetooth API** over a network.
-> - **With HTTPS**: Set up a reverse proxy (Caddy, Nginx Proxy Manager, Traefik) with an SSL certificate. Direct Web Bluetooth works seamlessly!
-> - **Without HTTPS (HTTP)**: Download and run the lightweight [Local Print Helper](catlabel/bridge/helper.py) (`python3 catlabel-helper.py`) on your workstation/laptop. CatLabel will automatically bridge to it over `ws://127.0.0.1:9123` to scan and print.
+3. Open `http://localhost:8000` in your browser.
 
 ---
 
-## Instruction Manual & Features
+## 🔌 Connecting Printers: How Bluetooth Works
 
-CatLabel is divided into a sidebar (for printers and files), a central canvas, and a right-hand properties panel.
+CatLabel offers two ways to connect your printers depending on your environment:
+
+### Method A: Direct Web Bluetooth (Zero Software)
+* **Best for**: Laptops, Chromebooks, and Android devices running Chrome or Edge.
+* **Requirements**: Must be accessed either on `http://localhost:8000` or through a secure **HTTPS** domain (e.g. behind Caddy, Nginx Proxy Manager, or Cloudflare).
+* **How to use**: Select **Web Bluetooth (Direct)** from the printer dropdown and click **Connect**.
+
+### Method B: Local Print Helper (`catlabel-helper.py`)
+* **Best for**: Connecting to a self-hosted CatLabel server over plain HTTP, Firefox users, or Linux desktops.
+* **How it works**: A lightweight Python script runs on your personal workstation and manages the local Bluetooth antenna, relaying print jobs from the web browser over `ws://127.0.0.1:9123`.
+* **Running the helper**:
+  ```bash
+  python3 catlabel/bridge/helper.py
+  # or download the standalone catlabel-helper.py from Releases
+  ```
+* **Smart Auto-Shutdown**: The helper automatically exits 15 seconds after you close your CatLabel browser tab to keep system resources free.
+
+---
+
+## 📖 User Guide & Canvas Studio
 
 ### 1. Canvas Editor (WYSIWYG)
-The visual editor allows you to place text, barcodes, QR codes, icons, shapes, and images.
-*   **Precision Control:** In the right panel, you can adjust X/Y coordinates and dimensions using millimeter inputs. Click and drag horizontally on the input labels (where you see `⇹`) to scrub the values up and down smoothly.
-*   **Icons & Images:** The toolbar includes a searchable Lucide icon library. Standard images are automatically thresholded (converted to black and white) and dithered to print clearly on thermal heads.
-*   **Z-Order & Grouping:** Use the toolbar to bring elements forward or backward. You can select multiple items (hold `Shift`) to group them together for moving and scaling.
+* **Millimeter Precision**: Click and drag horizontally on X/Y and dimension labels (where you see `⇹`) to smoothly scrub values.
+* **Default Landscape View**: Labels automatically open in natural landscape orientation for intuitive editing.
+* **Icons & Thermal Dithering**: Search from hundreds of built-in Lucide icons. Uploaded images are automatically thresholded and dithered for thermal print heads.
+* **Z-Ordering & Grouping**: Select multiple elements (`Shift + Click`) to group, align, or scale them together.
 
-### 2. Designing with HTML & CSS
-For complex layouts (like shipping labels or split columns), each label page can include a sanitized HTML/CSS background together with visual drag-and-drop elements. HTML and canvas elements are composited in the same page during preview and printing.
+### 2. Hardware RFID Roll Detection
+Niimbot printers with RFID readers communicate roll status directly to CatLabel:
+* When a printer connects, the app reads the roll's hardware RFID chip.
+* CatLabel automatically sets canvas dimensions (e.g. `40x12mm`) to match the installed paper.
+* The sidebar displays the detected roll name, barcode ID, and the exact count of remaining labels (e.g., `142 / 160 left`).
+* Click **Re-read** anytime you swap rolls without disconnecting.
 
-**Auto-Scaling Text:** 
-If you wrap text in an `.auto-text` class inside a `.bound-box` container, CatLabel will calculate and apply the exact font size needed to maximize the text within that box. This prevents text from overflowing or being too small without requiring manual font-size guessing.
-
-**Example Layout:**
-```html
-<div style="display: flex; flex-direction: column; height: 100%; padding: 4px; gap: 4px;">
-  <!-- Top half: Auto-scaling Title -->
-  <div class="bound-box" style="flex: 2;">
-    <div class="auto-text" style="font-weight: 900;">{{ product_name }}</div>
+### 3. Hybrid HTML & CSS Designing
+For complex layouts (like shipping labels or split columns), each label can include an HTML/CSS background layered with visual canvas elements.
+* **Auto-Scaling Text**: Wrap text in an `.auto-text` container inside a `.bound-box` to have CatLabel dynamically calculate the largest font size that fits without overflowing:
+  ```html
+  <div style="display: flex; flex-direction: column; height: 100%; padding: 4px;">
+    <div class="bound-box" style="flex: 2;">
+      <div class="auto-text" style="font-weight: 900;">{{ product_name }}</div>
+    </div>
+    <div class="bound-box" style="flex: 1;">
+      <div class="catlabel-code" data-type="barcode" data-format="code128" data-value="{{ sku }}"></div>
+    </div>
   </div>
-  
-  <!-- Divider -->
-  <div style="height: 2px; background: black; width: 100%;"></div>
-  
-  <!-- Bottom half: Dynamic Barcode -->
-  <div class="bound-box" style="flex: 1;">
-    <div class="catlabel-code" data-type="barcode" data-format="code128" data-value="{{ sku }}"></div>
-  </div>
-</div>
-```
-*Note: To add background patterns or colors, place an absolutely positioned `div` behind your flex containers to ensure the bounding box calculations remain accurate.*
+  ```
 
-### 3. Variables & Batch Printing
-You can design a single template and print multiple variations using variables.
-1. Type `{{ any_name }}` into a text element, barcode data field, or HTML block.
-2. Open the **Batch Data** tab in the right panel. The system will automatically detect your variables.
-3. Choose your data input method:
-   *   **Table:** Manually type rows of data, or use the "Import CSV" button to map spreadsheet columns to your variables.
-   *   **Permutations (Matrix):** Enter comma-separated lists for each variable. The app will generate every possible combination (e.g., Size: S, M, L / Color: Red, Blue).
-   *   **Sequence:** Select a variable and set a start number, end number, prefix, and zero-padding to instantly generate serialized labels (e.g., `BOX-001` to `BOX-050`).
-
-### 4. Wizards & Templates
-The toolbar includes a "Wizards" dropdown with built-in forms. These generate standard layouts for specific use cases:
-*   **Shipping Labels:** Includes an address book to save frequently used senders/recipients.
-*   **Price Tags:** Formats currency, large main prices, and underlined cents alongside a barcode.
-*   **Inventory & IT Assets:** Creates a high-contrast department header and paired QR code.
-*   **Date Tool:** Quickly insert today's date, or calculate offset dates (e.g., "+7 Days" for food expiry).
+### 4. Variables & Batch Printing
+1. Insert `{{ variable_name }}` into any text, barcode, or HTML block.
+2. Open the **Batch Data** tab to populate values:
+   * **Table / CSV**: Import rows from spreadsheets.
+   * **Permutations**: Generate every combination of attributes (e.g., Size: S, M, L × Color: Blue, Green).
+   * **Sequences**: Produce serialized batches (e.g., `SN-001` through `SN-250`).
 
 ### 5. AI Layout Assistant
-CatLabel includes a chat interface that can write HTML layouts and execute tool commands based on your text requests. It operates in two modes:
-*   **Live Agent:** Enter API keys for OpenAI, Google Gemini, or Vertex AI. You can also point it to a local LLM host (like LM Studio or Ollama) by selecting "Custom" and using `http://localhost:1234/v1`.
-*   **External (Copy/Paste):** If you already pay for ChatGPT Plus or Claude Pro, you can generate a system prompt block here, paste it into your browser tab, and paste the resulting JSON back into CatLabel. This applies the layout without consuming API credits.
-
-### 6. Project Management
-The sidebar contains a file tree to save your designs.
-*   You can create folders and drag-and-drop projects between them.
-*   Projects save the canvas dimensions, per-page HTML/template layouts, page-indexed elements, and your currently loaded batch data.
-*   You can export individual projects or entire folders as JSON files to back them up or share them.
-
-### 7. Printer Settings (Hardware Overrides)
-In the **Canvas & Printer** tab, you can override default hardware behaviors:
-*   **Density / Energy:** Increase this value to make prints darker (useful for transparent or synthetic label stock), or decrease it if the print head is smudging. V5G printers accept raw density overrides from 1–200; `0` keeps the model default. The UI also shows the model-tuned range, and the runtime may reduce an override while the print head is hot.
-*   **Feed Lines:** Controls how much blank tape is ejected after a print job to align the cut with the printer's tear-off teeth.
-*   **Split Mode:** Allows you to define a canvas larger than the printer's physical width. The app will slice the image and print it in sequential strips.
+Chat with an AI assistant to generate label templates from natural language descriptions:
+* **Live API**: Use your own API key for Google Gemini, OpenAI, Anthropic Claude, or local OpenAI-compatible hosts (Ollama / LM Studio at `http://localhost:1234/v1`).
+* **Copy/Paste Prompt Mode**: Generate system prompt blocks to paste into web chats (like ChatGPT Plus or Claude Pro) without spending API credits.
 
 ---
 
-## Troubleshooting & Bluetooth
+## 🏗️ Architecture
 
-*   **Windows Pairing:** Windows sometimes refuses to communicate with generic SPP (Serial Port Profile) printers unless they are explicitly paired in the Windows Settings menu first. If the app fails to connect, pair it manually in Windows, then try again.
-*   **macOS Connections:** Apple restricts classic Bluetooth SPP connections. CatLabel uses a custom PyObjC bridge to handle this, but you may occasionally need to restart the printer if macOS caches a stale connection state.
-*   **Niimbot Printers:** Niimbot devices use Bluetooth Low Energy (BLE). They do not require OS-level pairing. The app will connect to them directly.
-*   **Headless API Rendering:** Normal browser-based design and printing does not require Playwright. Third-party scripts that ask the backend API to rasterize HTML do require the optional headless Chromium environment. On Windows, install or repair it with `catlabel\run.bat --install-headless` from the folder containing the launcher.
+```
+CatLabel Studio
+├── catlabel/
+│   ├── api/          # FastAPI web routes, static files, REST endpoints
+│   ├── bridge/       # Companion print helper daemon & protocol handler
+│   ├── core/         # SQLite models, device configuration & engine
+│   ├── services/     # Layout rendering, font management & PDF rasterization
+│   └── vendors/      # Printer drivers (Niimbot, Phomemo, Generic V5/Luck/TSPL)
+└── frontend/
+    ├── src/          # React 19 + Zustand + Konva visual canvas
+    ├── src/utils/    # Web Bluetooth, Companion bridge, client storage & tests
+    └── dist/         # Production-built web assets bundled into container
+```
 
 ---
 
-## Architecture
+## 📄 License & Attribution
 
-*   **Backend (`catlabel/`):** A FastAPI server with separate device policy, printing runtime, stateless protocol encoding, and Bluetooth transport layers. Generic printer metadata is a reproducible snapshot pinned to TiMini-Print v0.7.3.
-*   **Frontend (`frontend/`):** A React application using Zustand for state management and Konva.js for the interactive canvas. Pages are represented by the union of page-indexed canvas elements and `pageLayouts`; rendering never inherits content from another page.
+This project is licensed under the **Apache License 2.0**.
 
-See the [backend architecture](docs/architecture.md), [frontend architecture](docs/frontend-architecture.md), and [upstream synchronization ledger](docs/upstream-sync.md) for layer ownership, document invariants, imported changes, and intentionally deferred printer families.
-
----
-
-## License & Attribution
-
-This project is a fork of [TiMini Print](https://github.com/Dejniel/TiMini-Print) by Dejniel. The original reverse-engineering of the V5/Generic printer protocols and the core encoding logic belong to the original author.
-
-CatLabel is distributed under the **Apache License 2.0**.
+* Based on [TiMini Print](https://github.com/Dejniel/TiMini-Print) by Dejniel. The original reverse-engineering of V5/Generic printer protocols and core encoding logic belong to the original author.
+* Niimbot BLE protocol support powered by reverse engineering research and [NiimBlueLib](https://github.com/MultiMote/niimbluelib).
