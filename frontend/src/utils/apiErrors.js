@@ -91,13 +91,13 @@ export const describePrintError = async (error, healthCheck = checkServerHealth)
     const serverIsRunning = await healthCheck();
     if (!serverIsRunning) {
       return [
-        'The CatLabel server stopped responding while the print request was running.',
-        'Reopen CatLabel and check the launcher window for the underlying Python or Bluetooth error. Then turn the printer off and on, scan again, and retry.',
+        'The OpenNiimStudio server stopped responding while the print request was running.',
+        'Reopen OpenNiimStudio and check the terminal/server logs for the underlying Python or Bluetooth error. Then turn the printer off and on, scan again, and retry.',
       ].join('\n\n');
     }
     return [
-      'The browser lost the print request, although the CatLabel server is responding again.',
-      'Check the launcher window for the underlying Bluetooth error, then scan for the printer again and retry.',
+      'The browser lost the print request, although the OpenNiimStudio server is responding again.',
+      'Check the terminal/server logs for the underlying Bluetooth error, then scan for the printer again and retry.',
       `Browser detail: ${error?.message || 'Network request failed'}`,
     ].join('\n\n');
   }

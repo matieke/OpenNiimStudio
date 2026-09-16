@@ -908,7 +908,7 @@ export const useStore = create(withHistory((set, get) => ({
   },
 
   // --- AI CHAT STATE ---
-  aiMessages: [{ role: 'assistant', content: 'Hi! I am the CatLabel AI Assistant. Tell me what kind of label you want to design, and I will generate it for you!' }],
+  aiMessages: [{ role: 'assistant', content: 'Hi! I am the OpenNiimStudio AI Assistant. Tell me what kind of label you want to design, and I will generate it for you!' }],
   aiInput: '',
   aiConvId: null,
   aiSessionUsage: { tokens: 0, promptTokens: 0, completionTokens: 0, cost: 0 },
@@ -939,7 +939,7 @@ export const useStore = create(withHistory((set, get) => ({
   aiExternalResults: [],
   setAiExternalResults: (val) => set({ aiExternalResults: val }),
   resetAiChat: () => set({
-    aiMessages: [{ role: 'assistant', content: 'Hi! I am the CatLabel AI Assistant. Tell me what kind of label you want to design, and I will generate it for you!' }],
+    aiMessages: [{ role: 'assistant', content: 'Hi! I am the OpenNiimStudio AI Assistant. Tell me what kind of label you want to design, and I will generate it for you!' }],
     aiInput: '',
     aiConvId: null,
     aiSessionUsage: { tokens: 0, promptTokens: 0, completionTokens: 0, cost: 0 },

@@ -112,7 +112,7 @@ export function getBluetoothCapability(
       requiresHelper: true,
       status: 'firefox_helper_required',
       title: 'Mozilla Firefox • Helper Mode',
-      message: 'Firefox does not support Web Bluetooth natively. Use the CatLabel Print Helper companion or open this page in Google Chrome/Edge for zero-install printing.'
+      message: 'Firefox does not support Web Bluetooth natively. Use the OpenNiimStudio Print Helper companion or open this page in Google Chrome/Edge for zero-install printing.'
     };
   }
 
@@ -124,7 +124,7 @@ export function getBluetoothCapability(
       requiresHelper: true,
       status: 'safari_helper_required',
       title: 'Apple Safari • Helper Mode',
-      message: 'Safari does not support Web Bluetooth. Use the CatLabel Print Helper companion or open this page in Google Chrome/Edge for zero-install printing.'
+      message: 'Safari does not support Web Bluetooth. Use the OpenNiimStudio Print Helper companion or open this page in Google Chrome/Edge for zero-install printing.'
     };
   }
 
@@ -135,6 +135,6 @@ export function getBluetoothCapability(
     requiresHelper: true,
     status: 'unsupported_browser',
     title: `${browser.name} • Helper Mode`,
-    message: 'This browser does not support Web Bluetooth natively. Use the CatLabel Print Helper companion or open in Google Chrome/Edge.'
+    message: 'This browser does not support Web Bluetooth natively. Use the OpenNiimStudio Print Helper companion or open in Google Chrome/Edge.'
   };
 }

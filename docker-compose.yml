@@ -1,18 +1,18 @@
 services:
-  catlabel:
-    image: forgejo.syncedmedia.be/matieke/openniimstudio:0.2
+  openniimstudio:
+    image: forgejo.syncedmedia.be/matieke/openniimstudio:0.3
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: catlabel
+    container_name: openniimstudio
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
-      - catlabel_data:/app/data
+      - openniimstudio_data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
 
 volumes:
-  catlabel_data:
+  openniimstudio_data:
     name: catlabel_data

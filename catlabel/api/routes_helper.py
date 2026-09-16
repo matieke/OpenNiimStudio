@@ -13,7 +13,7 @@ def download_helper_script():
     return FileResponse(
         path=HELPER_FILE,
         media_type="text/x-python",
-        filename="catlabel-helper.py"
+        filename="openniim-helper.py"
     )
 
 @router.get("/api/helper/info")
@@ -21,6 +21,7 @@ def get_helper_info():
     return {
         "version": "1.0.0",
         "port": 9123,
-        "protocol": "catlabel://",
+        "protocol": "openniim://",
+        "legacy_protocol": "catlabel://",
         "available": HELPER_FILE.exists()
     }

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-CatLabel Local Print Helper
+OpenNiimStudio Local Print Helper
 Self-contained local companion daemon for browsers without Web Bluetooth (Firefox, desktop Safari).
 Communicates with the web app over ws://127.0.0.1:9123.
-Handles local Bluetooth scanning and printing, registers catlabel:// protocol handler,
-and automatically exits 15 seconds after all CatLabel tabs are closed.
+Handles local Bluetooth scanning and printing, registers openniim:// and catlabel:// protocol handlers,
+and automatically exits 15 seconds after all OpenNiimStudio tabs are closed.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("catlabel-helper")
+logger = logging.getLogger("openniim-helper")
 
 PORT = 9123
 HOST = "127.0.0.1"
@@ -62,24 +62,24 @@ ensure_dependencies()
 
 # --- Protocol Handler Registration ---
 def register_protocol_handler():
-    """Register catlabel:// protocol on the user's OS."""
+    """Register openniim:// and catlabel:// protocol handlers on the user's OS."""
     system = platform.system().lower()
     script_path = Path(__file__).resolve()
     python_exe = sys.executable
 
-    logger.info("Registering catlabel:// URL protocol for %s...", system)
+    logger.info("Registering openniim:// and catlabel:// URL protocols for %s...", system)
 
     if system == "linux":
         app_dir = Path.home() / ".local" / "share" / "applications"
         app_dir.mkdir(parents=True, exist_ok=True)
-        desktop_file = app_dir / "catlabel-helper.desktop"
+        desktop_file = app_dir / "openniim-helper.desktop"
         desktop_entry = f"""[Desktop Entry]
-Name=CatLabel Print Helper
-Comment=Local Bluetooth print relay for CatLabel
+Name=OpenNiimStudio Print Helper
+Comment=Local Bluetooth print relay for OpenNiimStudio
 Exec={python_exe} "{script_path}" %u
 Type=Application
 Terminal=false
-MimeType=x-scheme-handler/catlabel;
+MimeType=x-scheme-handler/openniim;x-scheme-handler/catlabel;
 NoDisplay=true
 StartupNotify=false
 Categories=Utility;
@@ -88,7 +88,13 @@ Categories=Utility;
 
         try:
             subprocess.run(
-                ["xdg-mime", "default", "catlabel-helper.desktop", "x-scheme-handler/catlabel"],
+                ["xdg-mime", "default", "openniim-helper.desktop", "x-scheme-handler/openniim"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            subprocess.run(
+                ["xdg-mime", "default", "openniim-helper.desktop", "x-scheme-handler/catlabel"],
                 check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -99,23 +105,24 @@ Categories=Utility;
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            logger.info("Successfully registered xdg-mime handler for catlabel://")
+            logger.info("Successfully registered xdg-mime handlers for openniim:// and catlabel://")
         except Exception as e:
             logger.warning("Could not update xdg-mime: %s", e)
 
     elif system == "windows":
         try:
             import winreg
-            key_path = r"Software\Classes\catlabel"
-            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
-                winreg.SetValueEx(key, "", 0, winreg.REG_SZ, "URL:CatLabel Protocol")
-                winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
-            cmd_path = rf"{key_path}\shell\open\command"
-            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, cmd_path) as cmd_key:
-                winreg.SetValueEx(
-                    cmd_key, "", 0, winreg.REG_SZ, f'"{python_exe}" "{script_path}" "%1"'
-                )
-            logger.info("Successfully registered Windows registry handler for catlabel://")
+            for scheme, desc in [("openniim", "OpenNiimStudio Protocol"), ("catlabel", "CatLabel Protocol")]:
+                key_path = rf"Software\Classes\{scheme}"
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+                    winreg.SetValueEx(key, "", 0, winreg.REG_SZ, f"URL:{desc}")
+                    winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
+                cmd_path = rf"{key_path}\shell\open\command"
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, cmd_path) as cmd_key:
+                    winreg.SetValueEx(
+                        cmd_key, "", 0, winreg.REG_SZ, f'"{python_exe}" "{script_path}" "%1"'
+                    )
+            logger.info("Successfully registered Windows registry handlers for openniim:// and catlabel://")
         except Exception as e:
             logger.warning("Could not register Windows registry handler: %s", e)
 

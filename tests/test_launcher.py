@@ -63,7 +63,7 @@ class LauncherTests(unittest.TestCase):
         with mock.patch.object(launcher, "porcelain", porcelain):
             self.assertTrue(launcher.clone_repo(Path("C:/CatLabel/catlabel")))
 
-        porcelain.clone.assert_called_once_with(launcher.REPO_URL, "C:\\CatLabel\\catlabel")
+        porcelain.clone.assert_called_once_with(launcher.REPO_URL, str(Path("C:/CatLabel/catlabel")))
         repo.close.assert_called_once_with()
 
 

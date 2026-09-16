@@ -155,7 +155,7 @@ export default function AIAssistant() {
   };
 
   const handleCopyHistory = async () => {
-    let out = '# CatLabel AI Session Debug Report\n\n';
+    let out = '# OpenNiimStudio AI Session Debug Report\n\n';
     out += `**Session Tokens:** ${(sessionUsage.tokens || 0).toLocaleString()}\n`;
     out += `**Prompt Tokens:** ${(sessionUsage.promptTokens || 0).toLocaleString()}\n`;
     out += `**Completion Tokens:** ${(sessionUsage.completionTokens || 0).toLocaleString()}\n`;
@@ -708,7 +708,7 @@ export default function AIAssistant() {
       ) : (
         <div className="flex-1 overflow-y-auto py-4 pr-2 flex flex-col gap-5">
           <div className="text-[10px] text-neutral-500 leading-relaxed bg-purple-50 dark:bg-purple-900/10 p-3 rounded border border-purple-100 dark:border-purple-900/30">
-            Use your own ChatGPT Plus or Claude Pro account without consuming CatLabel API credits.
+            Use your own ChatGPT Plus or Claude Pro account without consuming OpenNiimStudio API credits.
             Generate the full tool-call prompt here, paste it into your external LLM, then paste the
             JSON tool-call response back below. You can also copy the current canvas as an image and
             paste it into the external chat for visual correction rounds.

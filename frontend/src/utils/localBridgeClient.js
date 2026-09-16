@@ -5,7 +5,8 @@
  */
 
 const BRIDGE_WS_URL = 'ws://127.0.0.1:9123';
-const PROTOCOL_URL = 'catlabel://start';
+const PROTOCOL_URL = 'openniim://start';
+const LEGACY_PROTOCOL_URL = 'catlabel://start';
 
 /**
  * Probe if the local print helper is currently running on localhost

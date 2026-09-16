@@ -50,7 +50,7 @@ export default function HelperSetupModal({ isOpen, onClose, onConnected }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
       <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
@@ -113,9 +113,9 @@ export default function HelperSetupModal({ isOpen, onClose, onConnected }) {
               <p className="font-semibold mb-1">
                 Detected: {browserCapability?.browser?.name || 'Firefox'} • Companion Mode
               </p>
-              Firefox and desktop Safari do not support the Web Bluetooth API natively. The lightweight CatLabel helper acts as a local bridge between your browser and your computer's Bluetooth adapter.
+              Firefox and desktop Safari do not support the Web Bluetooth API natively. The lightweight OpenNiimStudio helper acts as a local bridge between your browser and your computer's Bluetooth adapter.
               <div className="mt-1 font-medium text-blue-700 dark:text-blue-300">
-                ⚡ <strong>Zero clutter:</strong> The helper automatically shuts down 15 seconds after you close CatLabel tabs.
+                ⚡ <strong>Zero clutter:</strong> The helper automatically shuts down 15 seconds after you close OpenNiimStudio tabs.
               </div>
             </div>
           )}
@@ -132,10 +132,10 @@ export default function HelperSetupModal({ isOpen, onClose, onConnected }) {
                   <p className="font-bold text-neutral-900 dark:text-white">Download the Print Helper</p>
                   <a
                     href="/api/helper/script"
-                    download="catlabel-helper.py"
+                    download="openniim-helper.py"
                     className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
                   >
-                    <Download size={14} /> Download catlabel-helper.py
+                    <Download size={14} /> Download openniim-helper.py
                   </a>
                 </div>
               </div>
@@ -148,10 +148,10 @@ export default function HelperSetupModal({ isOpen, onClose, onConnected }) {
                 <div className="flex-1 space-y-1.5">
                   <p className="font-bold text-neutral-900 dark:text-white">Run the helper on your computer</p>
                   <div className="bg-neutral-950 text-neutral-200 p-2.5 rounded font-mono text-[11px] flex items-center justify-between border border-neutral-800">
-                    <code>python3 catlabel-helper.py</code>
+                    <code>python3 openniim-helper.py</code>
                   </div>
                   <p className="text-[10px] text-neutral-400">
-                    First run automatically registers the <code>catlabel://</code> protocol so future launches work with one click.
+                    First run automatically registers the <code>openniim://</code> protocol so future launches work with one click.
                   </p>
                 </div>
               </div>
@@ -176,9 +176,9 @@ export default function HelperSetupModal({ isOpen, onClose, onConnected }) {
                     <button
                       onClick={handleLaunchProtocol}
                       className="text-blue-600 dark:text-blue-400 hover:underline text-xs flex items-center gap-1 cursor-pointer"
-                      title="Try opening with registered catlabel:// protocol"
+                      title="Try opening with registered openniim:// protocol"
                     >
-                      Launch via catlabel:// <ExternalLink size={12} />
+                      Launch via Protocol <ExternalLink size={12} />
                     </button>
                   </div>
 
