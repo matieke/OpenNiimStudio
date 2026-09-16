@@ -239,12 +239,12 @@ describe('editor store correctness', () => {
     expect(paper.used_labels).toBe(16);
   });
 
-  test('manages battery level state and polling timers', () => {
-    vi.useFakeTimers();
+  test('manages battery level state without persistent polling timers', () => {
     useStore.setState({ printerBatteryLevel: null });
 
     useStore.getState().startBatteryPolling();
-    expect(useStore.getState().batteryPollTimer).not.toBeNull();
+    // Verify no recurring interval is set to avoid hardware beeping
+    expect(useStore.getState().batteryPollTimer).toBeNull();
 
     // Mock battery update
     useStore.setState({ printerBatteryLevel: 85 });

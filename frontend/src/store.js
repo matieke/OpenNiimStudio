@@ -1618,7 +1618,6 @@ export const useStore = create(withHistory((set, get) => ({
       return;
     }
 
-    get().startBatteryPolling();
     const localProfile = loadClientPrinterProfile(mac);
 
     try {
@@ -2221,16 +2220,8 @@ export const useStore = create(withHistory((set, get) => ({
   },
 
   startBatteryPolling: () => {
+    // Periodic polling disabled to prevent continuous hardware beeping on physical printers
     get().stopBatteryPolling();
-    get().fetchPrinterBattery();
-    const timer = setInterval(() => {
-      if (get().selectedPrinter) {
-        get().fetchPrinterBattery();
-      } else {
-        get().stopBatteryPolling();
-      }
-    }, 60000);
-    set({ batteryPollTimer: timer });
   },
 
   stopBatteryPolling: () => {

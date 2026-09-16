@@ -181,7 +181,7 @@ export default function Sidebar() {
               className="w-9 h-9 object-contain shrink-0"
               draggable={false}
             />
-            <h1 className="text-2xl font-serif tracking-tight text-neutral-900 dark:text-white truncate">OpenNiimStudio</h1>
+            <h1 className="text-2xl font-serif tracking-tight text-neutral-900 dark:text-white truncate" title="OpenNiimStudio">ONS</h1>
           </div>
         )}
         <button type="button" onClick={toggleSidebar} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="p-2 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition-colors flex-shrink-0">
