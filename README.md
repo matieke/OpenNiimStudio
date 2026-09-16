@@ -171,8 +171,8 @@ Whenever a git tag is created and pushed, the runner:
 To publish a release:
 ```bash
 git add .
-git commit -m "Release version 0.3.1"
-git tag -a 0.3.1 -m "Release 0.3.1"
+git commit -m "Release version 0.3.2"
+git tag -a 0.3.2 -m "Release 0.3.2"
 git push forgejo master --tags
 ```
 
