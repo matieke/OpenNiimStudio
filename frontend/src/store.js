@@ -370,6 +370,7 @@ export const useStore = create(withHistory((set, get) => ({
   bridgeClient: null,
   bridgeConnected: false,
   bridgeChecking: false,
+  helperInfo: null,
   showHelperSetupModal: false,
   setShowHelperSetupModal: (val) => set({ showHelperSetupModal: val }),
   pageLayouts: [{ pageIndex: 0, htmlContent: '', activeTemplate: null }],
@@ -564,19 +565,27 @@ export const useStore = create(withHistory((set, get) => ({
     try {
       const existing = get().bridgeClient;
       if (existing && existing.isConnected) {
-        set({ bridgeConnected: true, bridgeChecking: false });
+        set({ bridgeConnected: true, bridgeChecking: false, helperInfo: existing.helperInfo || get().helperInfo });
         return { success: true };
       }
 
       const client = new LocalBridgeClient();
+      client.onInfo = (info) => {
+        set({ helperInfo: info });
+      };
       client.onDisconnect = () => {
-        set({ bridgeConnected: false, bridgeClient: null });
+        set({ bridgeConnected: false, bridgeClient: null, helperInfo: null });
       };
       await client.connect();
-      set({ bridgeClient: client, bridgeConnected: true, bridgeChecking: false });
-      return { success: true };
+
+      // Probe bridge status to get helperInfo if greeting already completed
+      const status = await checkBridgeStatus(400);
+      const helperInfo = client.helperInfo || status.helperInfo;
+
+      set({ bridgeClient: client, bridgeConnected: true, bridgeChecking: false, helperInfo });
+      return { success: true, helperInfo };
     } catch (e) {
-      set({ bridgeConnected: false, bridgeChecking: false });
+      set({ bridgeConnected: false, bridgeChecking: false, helperInfo: null });
       return { success: false, error: e };
     }
   },
@@ -585,7 +594,7 @@ export const useStore = create(withHistory((set, get) => ({
     if (client) {
       client.disconnect();
     }
-    set({ bridgeClient: null, bridgeConnected: false });
+    set({ bridgeClient: null, bridgeConnected: false, helperInfo: null });
   },
   launchBridgeHelper: () => {
     launchBridgeViaProtocol();

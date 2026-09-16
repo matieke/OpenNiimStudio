@@ -25,15 +25,21 @@ describe('localBridgeClient', () => {
     vi.stubGlobal('WebSocket', vi.fn().mockImplementation(() => {
       const mockWs = {
         close: vi.fn(),
+        send: vi.fn(),
       };
       setTimeout(() => {
         if (mockWs.onopen) mockWs.onopen();
+        if (mockWs.onmessage) {
+          mockWs.onmessage({ data: JSON.stringify({ action: 'ready', version: '0.3.0', build_type: 'binary' }) });
+        }
       }, 10);
       return mockWs;
     }));
 
     const status = await checkBridgeStatus(100);
     expect(status.running).toBe(true);
+    expect(status.helperInfo?.version).toBe('0.3.0');
+    expect(status.helperInfo?.buildType).toBe('binary');
   });
 
   test('LocalBridgeClient sends print command and handles success response', async () => {

@@ -30,6 +30,10 @@ PORT = 9123
 HOST = "127.0.0.1"
 AUTO_SHUTDOWN_GRACE_SEC = 15.0
 
+VERSION = "0.3.0"
+IS_FROZEN = getattr(sys, "frozen", False)
+BUILD_TYPE = "binary" if IS_FROZEN else "python"
+
 CONNECTED_CLIENTS: Set[any] = set()
 SHUTDOWN_HANDLE: asyncio.TimerHandle | None = None
 
@@ -713,7 +717,9 @@ async def websocket_handler(websocket):
         # Send greeting
         await websocket.send(json.dumps({
             "action": "ready",
-            "version": "1.0.0",
+            "version": VERSION,
+            "build_type": BUILD_TYPE,
+            "is_frozen": IS_FROZEN,
             "platform": platform.system(),
             "status": "connected",
         }))
@@ -726,7 +732,22 @@ async def websocket_handler(websocket):
 
             action = data.get("action")
             if action == "ping":
-                await websocket.send(json.dumps({"action": "pong", "time": asyncio.get_event_loop().time()}))
+                await websocket.send(json.dumps({
+                    "action": "pong",
+                    "version": VERSION,
+                    "build_type": BUILD_TYPE,
+                    "is_frozen": IS_FROZEN,
+                    "time": asyncio.get_event_loop().time()
+                }))
+
+            elif action == "get_info":
+                await websocket.send(json.dumps({
+                    "action": "info_result",
+                    "version": VERSION,
+                    "build_type": BUILD_TYPE,
+                    "is_frozen": IS_FROZEN,
+                    "platform": platform.system(),
+                }))
 
             elif action == "scan":
                 logger.info("Scan requested by browser tab.")

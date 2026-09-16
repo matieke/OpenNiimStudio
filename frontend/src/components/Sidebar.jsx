@@ -64,7 +64,8 @@ export default function Sidebar() {
     launchBridgeHelper: state.launchBridgeHelper, scanViaBridge: state.scanViaBridge,
     showHelperSetupModal: state.showHelperSetupModal, setShowHelperSetupModal: state.setShowHelperSetupModal,
     loadedPaperInfo: state.loadedPaperInfo, isReadingRfid: state.isReadingRfid, readPrinterRfid: state.readPrinterRfid,
-    printerBatteryLevel: state.printerBatteryLevel
+    printerBatteryLevel: state.printerBatteryLevel,
+    helperInfo: state.helperInfo
   })));
 
   const [printers, setPrinters] = useState([]);
@@ -255,9 +256,24 @@ export default function Sidebar() {
                   <div className="flex items-center gap-2 truncate">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
                     <div className="flex flex-col truncate">
-                      <span className="font-semibold truncate text-emerald-700 dark:text-emerald-300">
-                        Print Helper Connected
-                      </span>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-semibold truncate text-emerald-700 dark:text-emerald-300">
+                          Print Helper Connected
+                        </span>
+                        <span className={`text-[9px] font-mono px-1 py-0.2 rounded font-bold shrink-0 ${
+                          helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
+                            ? 'bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200'
+                            : helperInfo?.buildType === 'python'
+                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                            : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+                        }`}>
+                          {helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
+                            ? `v${helperInfo?.version || '0.3.0'} Binary`
+                            : helperInfo?.buildType === 'python'
+                            ? `v${helperInfo?.version || '0.3.0'} Python`
+                            : 'Legacy Python'}
+                        </span>
+                      </div>
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400">Local Bluetooth Bridge</span>
                     </div>
                   </div>
@@ -484,6 +500,48 @@ export default function Sidebar() {
       {showPresetPicker && (
         <PresetPickerModal onClose={() => setShowPresetPicker(false)} />
       )}
+
+      {/* Footer: Bottom Left Version Information */}
+      <div className="mt-auto pt-4 border-t border-neutral-200 dark:border-neutral-800 flex flex-col gap-1 text-[11px] text-neutral-400 dark:text-neutral-500">
+        {!isSidebarCollapsed ? (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-neutral-700 dark:text-neutral-300">OpenNiimStudio</span>
+              <span className="font-mono text-[10px] bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
+                v0.3.0
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-neutral-500">Print Helper</span>
+              {bridgeConnected ? (
+                <span className={`inline-flex items-center gap-1 font-mono text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                  helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
+                    ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
+                    : helperInfo?.buildType === 'python'
+                    ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-800'
+                    : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800'
+                }`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                  {helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
+                    ? `v${helperInfo?.version || '0.3.0'} (Binary)`
+                    : helperInfo?.buildType === 'python'
+                    ? `v${helperInfo?.version || '0.3.0'} (Python)`
+                    : 'Legacy Python'}
+                </span>
+              ) : (
+                <span className="text-neutral-400 dark:text-neutral-600 italic">
+                  Not running
+                </span>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-center" title={`OpenNiimStudio v0.3.0\nHelper: ${bridgeConnected ? (helperInfo?.buildType === 'binary' ? 'Binary' : 'Python') : 'Inactive'}`}>
+            <span>v0.3.0</span>
+            <span className={`w-2 h-2 rounded-full ${bridgeConnected ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`} />
+          </div>
+        )}
+      </div>
       <HelperSetupModal
         isOpen={showHelperSetupModal}
         onClose={() => setShowHelperSetupModal(false)}
