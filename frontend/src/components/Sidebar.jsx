@@ -63,7 +63,8 @@ export default function Sidebar() {
     connectBridge: state.connectBridge, disconnectBridge: state.disconnectBridge,
     launchBridgeHelper: state.launchBridgeHelper, scanViaBridge: state.scanViaBridge,
     showHelperSetupModal: state.showHelperSetupModal, setShowHelperSetupModal: state.setShowHelperSetupModal,
-    loadedPaperInfo: state.loadedPaperInfo, isReadingRfid: state.isReadingRfid, readPrinterRfid: state.readPrinterRfid
+    loadedPaperInfo: state.loadedPaperInfo, isReadingRfid: state.isReadingRfid, readPrinterRfid: state.readPrinterRfid,
+    printerBatteryLevel: state.printerBatteryLevel
   })));
 
   const [printers, setPrinters] = useState([]);
@@ -364,7 +365,17 @@ export default function Sidebar() {
                 </button>
               </div>
 
-              {loadedPaperInfo ? (
+              {loadedPaperInfo?.tag_present === false ? (
+                <div className="mt-1.5 space-y-0.5">
+                  <div className="font-semibold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5 text-[11px]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                    <span>Non-RFID Roll (Manual preset)</span>
+                  </div>
+                  <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                    Third-party label paper detected. Select dimensions in presets or canvas settings.
+                  </div>
+                </div>
+              ) : loadedPaperInfo ? (
                 <div className="mt-1.5 space-y-0.5">
                   <div className="font-semibold text-neutral-900 dark:text-white flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
@@ -384,6 +395,15 @@ export default function Sidebar() {
               ) : (
                 <div className="mt-1 text-[10px] text-neutral-400 dark:text-neutral-500 italic">
                   {isReadingRfid ? 'Reading RFID tag from printer...' : 'No RFID data yet. Click Re-read to detect paper.'}
+                </div>
+              )}
+
+              {typeof printerBatteryLevel === 'number' && (
+                <div className="mt-2 pt-1.5 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between text-[10px] text-neutral-500 dark:text-neutral-400">
+                  <span className="font-semibold">Battery:</span>
+                  <span className="font-bold text-neutral-700 dark:text-neutral-300">
+                    {printerBatteryLevel}% (auto-refreshed 1m)
+                  </span>
                 </div>
               )}
             </div>

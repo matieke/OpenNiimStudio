@@ -107,6 +107,9 @@ export async function connectWebBluetoothPrinter() {
   const modelId = modelMeta?.model || 'niimbot';
   const dpi = modelMeta?.dpi || 203;
 
+  const rawBattery = printerInfo?.batteryPercents ?? printerInfo?.batteryLevel ?? null;
+  const normalizedBattery = typeof rawBattery === 'number' ? (rawBattery <= 4 ? rawBattery * 25 : rawBattery) : null;
+
   return {
     client,
     deviceName,
@@ -115,7 +118,7 @@ export async function connectWebBluetoothPrinter() {
     vendor: 'niimbluelib',
     dpi,
     transport: 'web_bluetooth',
-    battery_level: printerInfo?.batteryLevel ?? null,
+    battery_level: normalizedBattery,
     printerInfo,
     modelMeta,
   };
@@ -296,4 +299,31 @@ export async function getWebBluetoothRfidInfo(client) {
     console.warn('Failed to query RFID via Web Bluetooth:', err);
     return { success: false, error: err.message };
   }
+}
+
+/**
+ * Query the current battery charge level (percentage 0..100) from a connected Web Bluetooth printer
+ */
+export async function getWebBluetoothBatteryLevel(client) {
+  if (!client || (typeof client.isConnected === 'function' && !client.isConnected())) {
+    return null;
+  }
+
+  try {
+    if (client.protocol && typeof client.protocol.getBatteryChargeLevel === 'function') {
+      const charge = await client.protocol.getBatteryChargeLevel();
+      if (typeof charge === 'number' && charge >= 0) {
+        return charge <= 4 ? charge * 25 : Math.min(100, charge);
+      }
+    }
+  } catch (err) {
+    console.warn('Could not query battery charge level via protocol:', err);
+  }
+
+  const p = client.info?.batteryPercents ?? client.info?.batteryLevel;
+  if (typeof p === 'number' && p >= 0) {
+    return p <= 4 ? p * 25 : Math.min(100, p);
+  }
+
+  return null;
 }

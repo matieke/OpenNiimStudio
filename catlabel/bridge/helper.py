@@ -451,6 +451,66 @@ async def get_niimbot_rfid(mac: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
+async def get_niimbot_battery(mac: str) -> dict:
+    """Query current battery level from a Niimbot BLE printer."""
+    from bleak import BleakClient
+    NIIM_CHAR_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
+
+    logger.info("Reading battery level from printer at %s...", mac)
+    resp_bytes = bytearray()
+    event = asyncio.Event()
+
+    def on_notify(sender, data: bytearray):
+        resp_bytes.extend(data)
+        if len(resp_bytes) >= 7 and resp_bytes[-2:] == b"\xaa\xaa":
+            event.set()
+
+    try:
+        async with BleakClient(mac, timeout=8.0) as client:
+            if not client.is_connected:
+                return {"success": False, "error": f"Could not connect to {mac}"}
+
+            target_char = None
+            for service in client.services:
+                for char in service.characteristics:
+                    if NIIM_CHAR_UUID in char.uuid.lower():
+                        target_char = char
+                        break
+                if target_char:
+                    break
+            if not target_char:
+                target_char = NIIM_CHAR_UUID
+
+            await client.start_notify(target_char, on_notify)
+            # Query battery info (type 64: GET_INFO, payload [10]: BATTERY)
+            pkt = make_niimbot_packet(64, bytes([10]))
+            await client.write_gatt_char(target_char, pkt, response=False)
+
+            try:
+                await asyncio.wait_for(event.wait(), timeout=4.0)
+            except asyncio.TimeoutError:
+                return {"success": False, "error": "Printer did not respond to battery query"}
+            finally:
+                try:
+                    await client.stop_notify(target_char)
+                except Exception:
+                    pass
+
+        if len(resp_bytes) >= 7 and resp_bytes[2] in (65, 74):
+            payload_len = resp_bytes[3]
+            payload = resp_bytes[4 : 4 + payload_len]
+            if payload:
+                raw_val = payload[0]
+                battery_pct = raw_val * 25 if raw_val <= 4 else min(100, raw_val)
+                logger.info("Battery level for %s: %d%% (raw=%d)", mac, battery_pct, raw_val)
+                return {"success": True, "battery_level": battery_pct}
+
+        return {"success": False, "error": "Invalid battery packet received"}
+    except Exception as e:
+        logger.exception("Error querying battery on printer %s: %s", mac, e)
+        return {"success": False, "error": str(e)}
+
+
 # --- Niimbot BLE Protocol Printing ---
 def make_niimbot_packet(type_: int, data: bytes = b"") -> bytes:
     checksum = type_ ^ len(data)
@@ -681,6 +741,23 @@ async def websocket_handler(websocket):
                 await websocket.send(json.dumps({
                     "action": "rfid_result",
                     **rfid_res,
+                }))
+
+            elif action == "get_battery":
+                mac = data.get("mac_address")
+                logger.info("Battery query requested for printer %s", mac)
+                if not mac:
+                    await websocket.send(json.dumps({
+                        "action": "battery_result",
+                        "success": False,
+                        "error": "Missing mac_address",
+                    }))
+                    continue
+
+                bat_res = await get_niimbot_battery(mac)
+                await websocket.send(json.dumps({
+                    "action": "battery_result",
+                    **bat_res,
                 }))
 
             elif action == "print":

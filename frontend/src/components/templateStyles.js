@@ -149,7 +149,7 @@ export const TEMPLATE_METADATA = [
       { name: 'text', label: 'Text', type: 'textarea', default: 'Scan Me' },
     ],
     html: (p, isLandscape) => {
-      const qrHtml = p.data ? `<div class="catlabel-code" data-type="qrcode" data-value="${p.data}"></div>` : '';
+      const qrHtml = p.data ? `<div class="openniim-code catlabel-code" data-type="qrcode" data-value="${p.data}"></div>` : '';
 
       if (!qrHtml) {
         return `<div class="label-canvas-container" style="padding: 6%;"><div class="bound-box"><div class="auto-text" style="font-weight: 900; text-align: center;">${p.text || ''}</div></div></div>`;
@@ -197,7 +197,7 @@ export const TEMPLATE_METADATA = [
     html: (p, isLandscape) => {
       const hasCode = p.code_type && p.code_type !== 'none' && p.code_data;
       const isQR = p.code_type === 'qrcode';
-      const codeHtml = hasCode ? `<div class="catlabel-code" data-type="${isQR ? 'qrcode' : 'barcode'}" data-format="code128" data-value="${p.code_data}"></div>` : '';
+      const codeHtml = hasCode ? `<div class="openniim-code catlabel-code" data-type="${isQR ? 'qrcode' : 'barcode'}" data-format="code128" data-value="${p.code_data}"></div>` : '';
 
       if (isLandscape) {
         return `
@@ -259,7 +259,7 @@ export const TEMPLATE_METADATA = [
     ],
     html: (p, isLandscape) => {
       const isQR = p.code_type !== 'barcode';
-      const codeHtml = p.code_data ? `<div class="catlabel-code" data-type="${isQR ? 'qrcode' : 'barcode'}" data-format="code128" data-value="${p.code_data}"></div>` : '';
+      const codeHtml = p.code_data ? `<div class="openniim-code catlabel-code" data-type="${isQR ? 'qrcode' : 'barcode'}" data-format="code128" data-value="${p.code_data}"></div>` : '';
       
       const codeContainerStyle = isLandscape
         ? (isQR ? `flex: 0 1 auto; height: 100%; aspect-ratio: 1/1; margin: auto 0;` : `flex: 0.6; min-width: 0;`)
@@ -439,7 +439,7 @@ export const TEMPLATE_METADATA = [
     html: (p, isLandscape) => {
       const hasCode = p.code_type !== 'none';
       const isQR = p.code_type === 'qrcode';
-      const codeHtml = hasCode ? `<div class="catlabel-code" data-type="${isQR ? 'qrcode' : 'barcode'}" data-format="code128" data-value="${p.asset_id}"></div>` : '';
+      const codeHtml = hasCode ? `<div class="openniim-code catlabel-code" data-type="${isQR ? 'qrcode' : 'barcode'}" data-format="code128" data-value="${p.asset_id}"></div>` : '';
 
       const codeContainerStyle = isLandscape
         ? (isQR ? `flex: 0 1 auto; height: 100%; aspect-ratio: 1/1; margin: auto 0;` : `flex: 0.6; min-width: 0;`)

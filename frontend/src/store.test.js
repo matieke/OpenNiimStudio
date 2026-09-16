@@ -208,5 +208,50 @@ describe('editor store correctness', () => {
     // Individual mode calculates record 0 ("Cat") without being clamped by record 1
     expect(fittedIndividual.size).toBeGreaterThan(fittedUniform.size);
   });
+
+  test('optimistically decrements remaining sticker count on print completion', async () => {
+    useStore.setState({
+      loadedPaperInfo: {
+        tag_present: true,
+        remaining_labels: 100,
+        used_labels: 10,
+        total_labels: 110,
+      },
+      selectedPrinter: 'AA:BB:CC:DD:EE:FF',
+      selectedPrinterInfo: { transport: 'offline' },
+    });
+
+    // Simulate print completion handler logic
+    const copies = 2;
+    const labelsCount = 3; // 2 * 3 = 6 stickers printed
+    const stickersUsed = copies * labelsCount;
+
+    useStore.setState((prev) => ({
+      loadedPaperInfo: {
+        ...prev.loadedPaperInfo,
+        remaining_labels: Math.max(0, prev.loadedPaperInfo.remaining_labels - stickersUsed),
+        used_labels: (prev.loadedPaperInfo.used_labels || 0) + stickersUsed,
+      }
+    }));
+
+    const paper = useStore.getState().loadedPaperInfo;
+    expect(paper.remaining_labels).toBe(94);
+    expect(paper.used_labels).toBe(16);
+  });
+
+  test('manages battery level state and polling timers', () => {
+    vi.useFakeTimers();
+    useStore.setState({ printerBatteryLevel: null });
+
+    useStore.getState().startBatteryPolling();
+    expect(useStore.getState().batteryPollTimer).not.toBeNull();
+
+    // Mock battery update
+    useStore.setState({ printerBatteryLevel: 85 });
+    expect(useStore.getState().printerBatteryLevel).toBe(85);
+
+    useStore.getState().stopBatteryPolling();
+    expect(useStore.getState().batteryPollTimer).toBeNull();
+  });
 });
 

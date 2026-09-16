@@ -139,6 +139,25 @@ export default function OnboardingWizard() {
     }, 1000);
   }, [launchBridgeHelper, connectBridge, handleScanHelper, setShowHelperSetupModal]);
 
+  // Live polling for local print helper on Firefox / Safari / remote HTTP
+  useEffect(() => {
+    if (webBluetoothSupported || bridgeConnected) return;
+
+    let isSubscribed = true;
+    const poller = setInterval(async () => {
+      if (!isSubscribed || useStore.getState().bridgeConnected) return;
+      const res = await connectBridge();
+      if (res && res.success && isSubscribed) {
+        handleScanHelper();
+      }
+    }, 2000);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(poller);
+    };
+  }, [webBluetoothSupported, bridgeConnected, connectBridge, handleScanHelper]);
+
   const handleScanServer = async () => {
     setIsScanning(true);
     setScanSource('server');
@@ -361,43 +380,58 @@ export default function OnboardingWizard() {
 
                 {/* Helper notice if Firefox/Safari and not connected */}
                 {!webBluetoothSupported && !bridgeConnected && (
-                  <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 rounded-lg space-y-2.5 text-xs">
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 rounded-lg space-y-3 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                        <AlertCircle size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                        Firefox & Safari require the OpenNiimStudio Print Helper
+                        <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                        First Time Setup: Print Helper Required for {browserCapability?.browser?.name || 'Your Browser'}
                       </span>
                       <span className="text-[10px] bg-amber-200/80 dark:bg-amber-900 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded font-mono font-bold">
-                        Companion Not Detected
+                        Waiting for Companion...
                       </span>
                     </div>
+
                     <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed text-[11px]">
-                      Because {browserCapability?.browser?.name || 'this browser'} does not support the Web Bluetooth API natively,
-                      the lightweight <code>openniim-helper.py</code> script bridges your computer's Bluetooth adapter to this tab.
+                      Your browser cannot access your computer's Bluetooth adapter directly. Run the standalone <strong>openniim-helper.py</strong> companion script on your machine to bridge your local Bluetooth printer to this web session.
                     </p>
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <a
-                        href="/api/helper/script"
-                        download="openniim-helper.py"
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold uppercase tracking-wider text-[10px] flex items-center gap-1.5 rounded-none cursor-pointer"
-                      >
-                        <Download size={12} /> Download openniim-helper.py
-                      </a>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                      <div className="p-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded flex flex-col justify-between">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400">Step 1: Get Companion</span>
+                        <div className="mt-2 flex items-center gap-2">
+                          <a
+                            href="/api/helper/script"
+                            download="openniim-helper.py"
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold uppercase tracking-wider text-[10px] flex items-center gap-1.5 rounded cursor-pointer"
+                          >
+                            <Download size={12} /> Download openniim-helper.py
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded flex flex-col justify-between">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400">Step 2: Run in Terminal</span>
+                        <code className="mt-1 block text-[11px] font-mono bg-neutral-100 dark:bg-neutral-950 px-2 py-1 rounded text-neutral-800 dark:text-neutral-200 select-all">
+                          python3 openniim-helper.py
+                        </code>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-neutral-500">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+                        <span>Auto-listening on <code className="text-[10px]">ws://127.0.0.1:9123</code>. As soon as it runs, your printers will appear automatically!</span>
+                      </div>
                       <button
                         onClick={handleLaunchAndScanHelper}
-                        className="px-3 py-1.5 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5 cursor-pointer"
+                        className="px-2.5 py-1 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 flex items-center gap-1 cursor-pointer shrink-0"
                       >
-                        <RefreshCw size={12} /> Launch & Test Connection
-                      </button>
-                      <button
-                        onClick={() => setShowHelperSetupModal(true)}
-                        className="px-3 py-1.5 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <ExternalLink size={12} /> Setup Guide
+                        <RefreshCw size={11} className={isScanning ? 'animate-spin' : ''} /> Check Now
                       </button>
                     </div>
-                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500 italic pt-0.5">
-                      Tip: Open this page in Google Chrome or Microsoft Edge for 1-click zero-install direct printing without running any script!
+
+                    <p className="text-[10px] text-neutral-400 dark:text-neutral-500 italic pt-1 border-t border-amber-200 dark:border-amber-900/40">
+                      💡 Zero-install alternative: Simply open this URL in Google Chrome or Microsoft Edge for 1-click native Web Bluetooth printing!
                     </p>
                   </div>
                 )}

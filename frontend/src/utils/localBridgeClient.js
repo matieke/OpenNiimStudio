@@ -170,6 +170,14 @@ export class LocalBridgeClient {
       } else {
         reject(new Error(data.error || 'RFID query failed on local helper'));
       }
+    } else if (action === 'battery_result' && this.callbacks.has('battery')) {
+      const { resolve, reject } = this.callbacks.get('battery');
+      this.callbacks.delete('battery');
+      if (data.success) {
+        resolve(data.battery_level);
+      } else {
+        reject(new Error(data.error || 'Battery query failed on local helper'));
+      }
     } else if (action === 'print_result' && this.callbacks.has('print')) {
       const { resolve, reject } = this.callbacks.get('print');
       this.callbacks.delete('print');
@@ -235,6 +243,37 @@ export class LocalBridgeClient {
 
       this.ws.send(JSON.stringify({
         action: 'get_rfid',
+        mac_address: macAddress,
+      }));
+    });
+  }
+
+  async getBatteryLevel(macAddress, timeoutMs = 8000) {
+    if (!this.isConnected || !this.ws) {
+      throw new Error('Local helper is not connected');
+    }
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (this.callbacks.has('battery')) {
+          this.callbacks.delete('battery');
+          reject(new Error('Battery query timed out on local helper'));
+        }
+      }, timeoutMs);
+
+      this.callbacks.set('battery', {
+        resolve: (data) => {
+          clearTimeout(timer);
+          resolve(data);
+        },
+        reject: (err) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      });
+
+      this.ws.send(JSON.stringify({
+        action: 'get_battery',
         mac_address: macAddress,
       }));
     });

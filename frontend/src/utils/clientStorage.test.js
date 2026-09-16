@@ -83,4 +83,28 @@ describe('clientStorage', () => {
     const reloadedSettings = loadClientSettings();
     expect(reloadedSettings.paper_width_mm).toBe(75.0);
   });
+
+  test('migrates legacy catlabel_ keys seamlessly to openniim_ keys', () => {
+    // Seed legacy keys
+    window.localStorage.setItem('catlabel_client_settings', JSON.stringify({
+      paper_width_mm: 50.0,
+      intended_media_type: 'pre-cut',
+    }));
+    window.localStorage.setItem('catlabel_client_projects', JSON.stringify([
+      { id: 'legacy-1', name: 'Legacy Label' },
+    ]));
+
+    // Reading via OpenNiimStorage
+    const settings = loadClientSettings();
+    expect(settings.paper_width_mm).toBe(50.0);
+    expect(settings.intended_media_type).toBe('pre-cut');
+
+    const projects = loadClientProjects();
+    expect(projects).toHaveLength(1);
+    expect(projects[0].name).toBe('Legacy Label');
+
+    // Verify migrated into openniim_ key
+    expect(window.localStorage.getItem('openniim_client_settings')).toBeDefined();
+    expect(window.localStorage.getItem('openniim_client_projects')).toBeDefined();
+  });
 });

@@ -85,7 +85,11 @@ const TreeNode = ({ node, level, onImport, onMove }) => {
         : `/api/export`;
 
       if (!isFolder) {
-        const payload = { catlabel_export_version: "1.0", data: { type: "project", name: node.name, canvas_state: node.canvas_state } };
+        const payload = {
+          openniim_export_version: "1.0",
+          catlabel_export_version: "1.0",
+          data: { type: "project", name: node.name, canvas_state: node.canvas_state }
+        };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -109,7 +113,9 @@ const TreeNode = ({ node, level, onImport, onMove }) => {
 
   const handleDragStart = (e) => {
     e.stopPropagation();
-    e.dataTransfer.setData('application/catlabel-node', JSON.stringify({ id: node.id, type: node.type, parent_id: node.parent_id || node.category_id || null }));
+    const data = JSON.stringify({ id: node.id, type: node.type, parent_id: node.parent_id || node.category_id || null });
+    e.dataTransfer.setData('application/openniim-node', data);
+    e.dataTransfer.setData('application/catlabel-node', data);
   };
 
   const handleDragOver = (e) => {
@@ -131,7 +137,8 @@ const TreeNode = ({ node, level, onImport, onMove }) => {
       e.stopPropagation();
       setIsDragOver(false);
       try {
-        const dragged = JSON.parse(e.dataTransfer.getData('application/catlabel-node'));
+        const raw = e.dataTransfer.getData('application/openniim-node') || e.dataTransfer.getData('application/catlabel-node');
+        const dragged = JSON.parse(raw);
         if (dragged.id === node.id && dragged.type === node.type) return;
         if (dragged.parent_id === node.id) return;
         onMove(dragged, node.id);
@@ -399,7 +406,7 @@ export default function ProjectTree() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `catlabel_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `openniim_backup_${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -423,7 +430,8 @@ export default function ProjectTree() {
     e.stopPropagation();
     setIsRootDragOver(false);
     try {
-      const dragged = JSON.parse(e.dataTransfer.getData('application/catlabel-node'));
+      const raw = e.dataTransfer.getData('application/openniim-node') || e.dataTransfer.getData('application/catlabel-node');
+      const dragged = JSON.parse(raw);
       if (dragged.parent_id === null) return;
       handleMove(dragged, null);
     } catch (_error) {}

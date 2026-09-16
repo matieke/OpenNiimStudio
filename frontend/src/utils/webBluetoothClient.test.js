@@ -74,4 +74,44 @@ describe('webBluetoothClient', () => {
     expect(res.used_labels).toBe(18);
     expect(res.remaining_labels).toBe(142);
   });
+
+  test('handles third-party non-RFID rolls gracefully without error', async () => {
+    const { getWebBluetoothRfidInfo } = await import('./webBluetoothClient');
+    const mockClient = {
+      isConnected: () => true,
+      abstraction: {
+        rfidInfo: vi.fn().mockResolvedValue({
+          tagPresent: false,
+        }),
+      },
+    };
+
+    const res = await getWebBluetoothRfidInfo(mockClient);
+    expect(res.success).toBe(true);
+    expect(res.tag_present).toBe(false);
+    expect(res.message).toContain('No RFID tag');
+  });
+
+  test('queries battery charge level via protocol and normalizes 0..4 or 0..100', async () => {
+    const { getWebBluetoothBatteryLevel } = await import('./webBluetoothClient');
+    const mockClientBars = {
+      isConnected: () => true,
+      protocol: {
+        getBatteryChargeLevel: vi.fn().mockResolvedValue(3),
+      },
+    };
+
+    const batBars = await getWebBluetoothBatteryLevel(mockClientBars);
+    expect(batBars).toBe(75);
+
+    const mockClientPercent = {
+      isConnected: () => true,
+      protocol: {
+        getBatteryChargeLevel: vi.fn().mockResolvedValue(88),
+      },
+    };
+
+    const batPct = await getWebBluetoothBatteryLevel(mockClientPercent);
+    expect(batPct).toBe(88);
+  });
 });

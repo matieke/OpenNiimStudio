@@ -34,7 +34,8 @@ import {
   connectWebBluetoothPrinter,
   disconnectWebBluetoothPrinter,
   printViaWebBluetooth,
-  getWebBluetoothRfidInfo
+  getWebBluetoothRfidInfo,
+  getWebBluetoothBatteryLevel
 } from './utils/webBluetoothClient';
 import {
   checkBridgeStatus,
@@ -362,6 +363,8 @@ export const useStore = create(withHistory((set, get) => ({
   selectedPrinterInfo: null,
   webBluetoothSession: null,
   webBluetoothProgress: 0,
+  printerBatteryLevel: null,
+  batteryPollTimer: null,
   browserCapability: typeof window !== 'undefined' ? getBluetoothCapability() : null,
   webBluetoothSupported: typeof window !== 'undefined' && isWebBluetoothSupported(),
   bridgeClient: null,
@@ -488,7 +491,8 @@ export const useStore = create(withHistory((set, get) => ({
   manualPrinters: (() => {
     if (typeof window === 'undefined') return [];
     try {
-      const saved = JSON.parse(window.localStorage.getItem('catlabel_manual_printers') || '[]');
+      const raw = window.localStorage.getItem('openniim_manual_printers') || window.localStorage.getItem('catlabel_manual_printers');
+      const saved = JSON.parse(raw || '[]');
       return Array.isArray(saved)
         ? saved.filter((printer) => printer && typeof printer === 'object' && typeof printer.address === 'string').slice(0, 100)
         : [];
@@ -500,14 +504,14 @@ export const useStore = create(withHistory((set, get) => ({
   addManualPrinter: (printer) => set((state) => {
     const newManual = [...state.manualPrinters.filter((p) => p.address !== printer.address), printer];
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('catlabel_manual_printers', JSON.stringify(newManual));
+      window.localStorage.setItem('openniim_manual_printers', JSON.stringify(newManual));
     }
     return { manualPrinters: newManual };
   }),
   removeManualPrinter: (address) => set((state) => {
     const newManual = state.manualPrinters.filter((p) => p.address !== address);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('catlabel_manual_printers', JSON.stringify(newManual));
+      window.localStorage.setItem('openniim_manual_printers', JSON.stringify(newManual));
     }
     return { manualPrinters: newManual };
   }),
@@ -528,7 +532,7 @@ export const useStore = create(withHistory((set, get) => ({
         const newManual = [...state.manualPrinters.filter((p) => p.address !== session.address), printerObj];
         if (typeof window !== 'undefined') {
           try {
-            window.localStorage.setItem('catlabel_manual_printers', JSON.stringify(newManual));
+            window.localStorage.setItem('openniim_manual_printers', JSON.stringify(newManual));
           } catch (_e) {}
         }
         return {
@@ -536,6 +540,7 @@ export const useStore = create(withHistory((set, get) => ({
           manualPrinters: newManual,
           selectedPrinter: session.address,
           selectedPrinterInfo: printerObj,
+          printerBatteryLevel: session.battery_level ?? state.printerBatteryLevel,
         };
       });
       await get().setSelectedPrinter(session.address, printerObj);
@@ -547,10 +552,11 @@ export const useStore = create(withHistory((set, get) => ({
     }
   },
   disconnectWebBluetooth: async () => {
+    get().stopBatteryPolling();
     const session = get().webBluetoothSession;
     if (session) {
       await disconnectWebBluetoothPrinter(session.client);
-      set({ webBluetoothSession: null });
+      set({ webBluetoothSession: null, printerBatteryLevel: null });
     }
   },
   connectBridge: async () => {
@@ -801,6 +807,29 @@ export const useStore = create(withHistory((set, get) => ({
 
     set({ isPrinting: true, webBluetoothProgress: 0 });
 
+    const physicalStickersUsed = (pendingPrintJob.copies || 1) * images.length;
+    const registerPrintSuccess = () => {
+      // 1. Immediate optimistic decrement on UI
+      set((prev) => {
+        if (!prev.loadedPaperInfo || typeof prev.loadedPaperInfo.remaining_labels !== 'number') {
+          return {};
+        }
+        const currentRemaining = prev.loadedPaperInfo.remaining_labels;
+        const currentUsed = prev.loadedPaperInfo.used_labels || 0;
+        return {
+          loadedPaperInfo: {
+            ...prev.loadedPaperInfo,
+            remaining_labels: Math.max(0, currentRemaining - physicalStickersUsed),
+            used_labels: currentUsed + physicalStickersUsed,
+          }
+        };
+      });
+      // 2. Hardware RFID sync after paper feeding settles
+      setTimeout(() => {
+        get().readPrinterRfid().catch((err) => console.warn('Background RFID sync error:', err));
+      }, 2000);
+    };
+
     const isWebBle = Boolean(
       state.webBluetoothSession &&
       (state.selectedPrinter === state.webBluetoothSession.address ||
@@ -815,6 +844,7 @@ export const useStore = create(withHistory((set, get) => ({
           density: state.printerProfile?.energy || 3,
           onProgress: (p) => set({ webBluetoothProgress: p })
         });
+        registerPrintSuccess();
       } catch (e) {
         console.error('Web Bluetooth print error:', e);
         alert(`Failed to print via Web Bluetooth:\n\n${e.message || e}`);
@@ -834,6 +864,7 @@ export const useStore = create(withHistory((set, get) => ({
         }, (p) => {
           set({ webBluetoothProgress: p });
         });
+        registerPrintSuccess();
       } catch (e) {
         console.error('Print Helper error:', e);
         alert(`Failed to print via local helper:\n\n${e.message || e}`);
@@ -855,6 +886,7 @@ export const useStore = create(withHistory((set, get) => ({
           dither: pendingPrintJob.dither
         })
       }, { timeoutMs: 120_000, fallback: 'Print failed' });
+      registerPrintSuccess();
     } catch (e) {
       console.error(e);
       const message = await describePrintError(e);
@@ -1397,10 +1429,10 @@ export const useStore = create(withHistory((set, get) => ({
       });
       set({ fonts: data });
 
-      const oldStyle = document.getElementById('catlabel-uploaded-fonts');
-      oldStyle?.remove();
+      document.getElementById('catlabel-uploaded-fonts')?.remove();
+      document.getElementById('openniim-uploaded-fonts')?.remove();
       const style = document.createElement('style');
-      style.id = 'catlabel-uploaded-fonts';
+      style.id = 'openniim-uploaded-fonts';
       let css = '';
       data.forEach(font => {
         if (!font || typeof font.name !== 'string' || typeof font.file_path !== 'string') return;
@@ -1569,10 +1601,15 @@ export const useStore = create(withHistory((set, get) => ({
     });
 
     if (!mac) {
-      set({ printerProfile: { speed: 0, energy: 0, feed_lines: 50, paper_mode: null } });
+      get().stopBatteryPolling();
+      set({
+        printerProfile: { speed: 0, energy: 0, feed_lines: 50, paper_mode: null },
+        printerBatteryLevel: null
+      });
       return;
     }
 
+    get().startBatteryPolling();
     const localProfile = loadClientPrinterProfile(mac);
 
     try {
@@ -1752,7 +1789,12 @@ export const useStore = create(withHistory((set, get) => ({
       }
 
       if (!rfidData || !rfidData.success || !rfidData.tag_present) {
-        set({ isReadingRfid: false });
+        set({
+          isReadingRfid: false,
+          loadedPaperInfo: rfidData?.success && !rfidData.tag_present
+            ? { tag_present: false, message: 'Non-RFID roll (Manual preset)' }
+            : null
+        });
         return null;
       }
 
@@ -2143,4 +2185,50 @@ export const useStore = create(withHistory((set, get) => ({
     };
   }),
   setCanvasSize: (width, height) => get().setCanvasGeometry(width, height, get().isRotated),
+
+  fetchPrinterBattery: async () => {
+    const state = get();
+    const printer = state.selectedPrinter;
+    const info = state.selectedPrinterInfo;
+    if (!printer) return null;
+
+    try {
+      let level = null;
+      if (info?.transport === 'web_bluetooth' && state.webBluetoothSession?.client) {
+        level = await getWebBluetoothBatteryLevel(state.webBluetoothSession.client);
+      } else if (state.bridgeConnected && state.bridgeClient) {
+        level = await state.bridgeClient.getBatteryLevel(printer);
+      }
+
+      if (typeof level === 'number' && !isNaN(level)) {
+        const normalized = Math.max(0, Math.min(100, Math.round(level)));
+        set({ printerBatteryLevel: normalized });
+        return normalized;
+      }
+    } catch (err) {
+      console.warn('Could not refresh printer battery level:', err);
+    }
+    return null;
+  },
+
+  startBatteryPolling: () => {
+    get().stopBatteryPolling();
+    get().fetchPrinterBattery();
+    const timer = setInterval(() => {
+      if (get().selectedPrinter) {
+        get().fetchPrinterBattery();
+      } else {
+        get().stopBatteryPolling();
+      }
+    }, 60000);
+    set({ batteryPollTimer: timer });
+  },
+
+  stopBatteryPolling: () => {
+    const timer = get().batteryPollTimer;
+    if (timer) {
+      clearInterval(timer);
+      set({ batteryPollTimer: null });
+    }
+  },
 })));

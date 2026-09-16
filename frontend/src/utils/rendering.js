@@ -31,7 +31,7 @@ const loadInjectedImage = (src) => new Promise((resolve) => {
 
 export const processHtmlDynamicElements = async (container, width, height, isCancelled) => {
   // 1. Process codes (QR/Barcode)
-  const codeEls = Array.from(container.querySelectorAll('.catlabel-code'));
+  const codeEls = Array.from(container.querySelectorAll('.openniim-code, .catlabel-code'));
 
   for (const el of codeEls) {
     if (isCancelled && isCancelled()) return;

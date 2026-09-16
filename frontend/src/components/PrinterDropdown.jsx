@@ -1,11 +1,43 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Trash2, Printer as PrinterIcon } from 'lucide-react';
+import { ChevronDown, Trash2, Printer as PrinterIcon, BatteryFull, BatteryMedium, BatteryLow, BatteryWarning } from 'lucide-react';
 import { useStore } from '../store';
+
+function BatteryIndicator({ level }) {
+  if (typeof level !== 'number') return null;
+
+  let Icon = BatteryMedium;
+  let color = 'text-sky-500';
+
+  if (level >= 75) {
+    Icon = BatteryFull;
+    color = 'text-emerald-500';
+  } else if (level >= 40) {
+    Icon = BatteryMedium;
+    color = 'text-sky-500';
+  } else if (level >= 15) {
+    Icon = BatteryLow;
+    color = 'text-amber-500';
+  } else {
+    Icon = BatteryWarning;
+    color = 'text-red-500 animate-pulse';
+  }
+
+  return (
+    <div
+      className="flex items-center gap-1 text-[11px] font-bold text-neutral-600 dark:text-neutral-300 ml-auto shrink-0 mr-1"
+      title={`Battery: ${level}% (Auto-refreshed every minute)`}
+    >
+      <Icon size={14} className={color} />
+      <span>{level}%</span>
+    </div>
+  );
+}
 
 export default function PrinterDropdown({ printers, manualPrinters, selectedPrinter, onSelect }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const removeManualPrinter = useStore((state) => state.removeManualPrinter);
+  const printerBatteryLevel = useStore((state) => state.printerBatteryLevel);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -43,7 +75,7 @@ export default function PrinterDropdown({ printers, manualPrinters, selectedPrin
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between bg-white dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 p-2.5 text-xs text-neutral-900 dark:text-white transition-colors hover:border-blue-500"
       >
-        <div className="flex items-center gap-2 truncate">
+        <div className="flex items-center gap-2 truncate flex-1 min-w-0">
           {selectedData ? (
             <>
               <div className={`w-2 h-2 rounded-full shrink-0 ${selectedData.transport === 'web_bluetooth' ? 'bg-blue-500 animate-pulse' : selectedData.transport === 'offline' ? 'bg-neutral-300 dark:bg-neutral-600' : 'bg-green-500'}`} />
@@ -55,7 +87,12 @@ export default function PrinterDropdown({ printers, manualPrinters, selectedPrin
             <span className="text-neutral-500 uppercase tracking-wider font-bold">Select a printer...</span>
           )}
         </div>
-        <ChevronDown size={14} className={`text-neutral-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {selectedData && typeof printerBatteryLevel === 'number' && (
+            <BatteryIndicator level={printerBatteryLevel} />
+          )}
+          <ChevronDown size={14} className={`text-neutral-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
       </button>
 
       {isOpen && (

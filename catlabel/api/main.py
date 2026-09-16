@@ -80,7 +80,7 @@ async def lifespan(app: FastAPI):
     download_default_fonts()
     yield
 
-app = FastAPI(title="CatLabel Server", lifespan=lifespan)
+app = FastAPI(title="OpenNiimStudio Server", lifespan=lifespan)
 
 os.makedirs("data/fonts", exist_ok=True)
 app.mount("/fonts", StaticFiles(directory="data/fonts"), name="fonts")

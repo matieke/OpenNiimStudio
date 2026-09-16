@@ -5,6 +5,17 @@
  */
 
 const STORAGE_KEYS = {
+  SETTINGS: 'openniim_client_settings',
+  PRINTER_PROFILES: 'openniim_client_printer_profiles',
+  PROJECTS: 'openniim_client_projects',
+  CATEGORIES: 'openniim_client_categories',
+  CUSTOM_PRESETS: 'openniim_client_custom_presets',
+  RFID_PRESETS: 'openniim_rfid_presets',
+  ADDRESSES: 'openniim_client_addresses',
+  STORAGE_MODE: 'openniim_storage_mode', // 'local' | 'server'
+};
+
+const LEGACY_STORAGE_KEYS = {
   SETTINGS: 'catlabel_client_settings',
   PRINTER_PROFILES: 'catlabel_client_printer_profiles',
   PROJECTS: 'catlabel_client_projects',
@@ -12,7 +23,7 @@ const STORAGE_KEYS = {
   CUSTOM_PRESETS: 'catlabel_client_custom_presets',
   RFID_PRESETS: 'catlabel_rfid_presets',
   ADDRESSES: 'catlabel_client_addresses',
-  STORAGE_MODE: 'catlabel_storage_mode', // 'local' | 'server'
+  STORAGE_MODE: 'catlabel_storage_mode',
 };
 
 export const DEFAULT_SETTINGS = {
@@ -33,11 +44,18 @@ function getStorage() {
   return window.localStorage;
 }
 
-function getItem(key, fallback = null) {
+function getItem(key, fallback = null, legacyKey = null) {
   const storage = getStorage();
   if (!storage) return fallback;
   try {
-    const raw = storage.getItem(key);
+    let raw = storage.getItem(key);
+    if (!raw && legacyKey) {
+      raw = storage.getItem(legacyKey);
+      if (raw) {
+        // Automatically migrate legacy key to new key
+        try { storage.setItem(key, raw); } catch (_e) {}
+      }
+    }
     if (!raw) return fallback;
     return JSON.parse(raw);
   } catch (err) {
@@ -76,7 +94,7 @@ export function isClientStorageAvailable() {
 // ==========================================
 
 export function loadClientSettings() {
-  const saved = getItem(STORAGE_KEYS.SETTINGS, null);
+  const saved = getItem(STORAGE_KEYS.SETTINGS, null, LEGACY_STORAGE_KEYS.SETTINGS);
   if (!saved || typeof saved !== 'object') {
     return null;
   }
@@ -92,7 +110,7 @@ export function saveClientSettings(settings) {
 // ==========================================
 
 export function loadAllClientPrinterProfiles() {
-  const profiles = getItem(STORAGE_KEYS.PRINTER_PROFILES, {});
+  const profiles = getItem(STORAGE_KEYS.PRINTER_PROFILES, {}, LEGACY_STORAGE_KEYS.PRINTER_PROFILES);
   return profiles && typeof profiles === 'object' ? profiles : {};
 }
 
@@ -119,7 +137,7 @@ export function saveClientPrinterProfile(macAddress, profile) {
 // ==========================================
 
 export function loadClientProjects() {
-  const projects = getItem(STORAGE_KEYS.PROJECTS, null);
+  const projects = getItem(STORAGE_KEYS.PROJECTS, null, LEGACY_STORAGE_KEYS.PROJECTS);
   return Array.isArray(projects) ? projects : null;
 }
 
@@ -128,7 +146,7 @@ export function saveClientProjects(projects) {
 }
 
 export function loadClientCategories() {
-  const categories = getItem(STORAGE_KEYS.CATEGORIES, null);
+  const categories = getItem(STORAGE_KEYS.CATEGORIES, null, LEGACY_STORAGE_KEYS.CATEGORIES);
   return Array.isArray(categories) ? categories : null;
 }
 
@@ -141,7 +159,7 @@ export function saveClientCategories(categories) {
 // ==========================================
 
 export function loadClientCustomPresets() {
-  const presets = getItem(STORAGE_KEYS.CUSTOM_PRESETS, []);
+  const presets = getItem(STORAGE_KEYS.CUSTOM_PRESETS, [], LEGACY_STORAGE_KEYS.CUSTOM_PRESETS);
   return Array.isArray(presets) ? presets : [];
 }
 
@@ -154,7 +172,7 @@ export function saveClientCustomPresets(presets) {
 // ==========================================
 
 export function loadClientRfidPresets() {
-  const map = getItem(STORAGE_KEYS.RFID_PRESETS, {});
+  const map = getItem(STORAGE_KEYS.RFID_PRESETS, {}, LEGACY_STORAGE_KEYS.RFID_PRESETS);
   return (map && typeof map === 'object') ? map : {};
 }
 
@@ -169,7 +187,7 @@ export function saveClientRfidPreset(barcodeOrUuid, presetIdOrData) {
 // ==========================================
 
 export function loadClientAddresses() {
-  const addresses = getItem(STORAGE_KEYS.ADDRESSES, null);
+  const addresses = getItem(STORAGE_KEYS.ADDRESSES, null, LEGACY_STORAGE_KEYS.ADDRESSES);
   return Array.isArray(addresses) ? addresses : null;
 }
 

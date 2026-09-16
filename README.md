@@ -1,63 +1,118 @@
 # OpenNiimStudio
 
-OpenNiimStudio is an open-source, self-hosted web app for designing and printing labels on portable Bluetooth thermal printers (Niimbot, Phomemo, and generic thermal labelers).
+OpenNiimStudio is a self-hosted web studio for designing and printing labels directly to portable Bluetooth thermal printers. 
 
-It started as a web-focused fork of [TiMini Print](https://github.com/Dejniel/TiMini-Print). Instead of running a Tkinter desktop GUI, OpenNiimStudio runs a FastAPI backend with a modern React canvas editor in your browser, backed by a reverse-engineered Niimbot BLE print engine.
-
----
-
-## What's New in 0.3
-
-- **Canvas Splitting (Grid & Cut Lines)**: Print multiple small labels or sub-tags on a single physical sticker roll. Split your label into grids (e.g. 1×2, 2×2, 3×1), see exact millimeter sub-cell dimensions in real time, replicate elements across cells, and print optional dashed or solid cut lines.
-- **Niimbot D110_M & B1-Family Printing Engine**: Fully resolved protocol differences for newer D110_M, D110, and B1-series printers (7-byte job headers, 6-byte dimension packets, bitmap row chunking, and automatic 90° orientation so landscape canvases feed lengthwise).
-- **First-Time Setup Wizard**: Automatically detects your browser's Bluetooth capabilities on first launch. Offers instant 1-click Web Bluetooth pairing on Chrome/Edge, or provides the lightweight `openniim-helper.py` companion for Firefox and Safari.
-- **Full Rebrand to OpenNiimStudio**: Updated companion protocol (`openniim://start`), helper script (`openniim-helper.py`), and prebuilt container images (`openniimstudio:0.3` and `openniimstudio:latest`).
-- **Automated Docker CI/CD**: Automated Forgejo Actions workflow that builds multi-arch containers and tags both the release version and `:latest` whenever a git tag is pushed.
+It pairs an in-browser visual canvas editor with reverse-engineered Bluetooth print engines, allowing you to design labels on your desktop, laptop, tablet, or phone and send jobs directly to Niimbot, Phomemo, and generic thermal label makers without relying on proprietary mobile apps or cloud services.
 
 ---
 
-## Canvas Splitting: Multiple Labels per Sticker
+## Features
 
-If you use standard continuous rolls or pre-cut labels (like 40×12 mm or 50×30 mm), you don't need to waste an entire sticker for a tiny serial number or cable tag:
+### Visual Label Designer
+- **Millimeter-Accurate Canvas**: Design on continuous rolls or pre-cut label sizes. Switch between portrait and landscape modes with automatic printhead orientation.
+- **Scrubbable Numeric Inputs**: Type exact millimeter dimensions, or click and drag horizontally across inputs marked with `⇹` to adjust values smoothly.
+- **Custom Fonts**: Upload TTF and OTF font files directly through the web interface. Uploaded fonts persist on your server and render identically across all connected devices.
+- **Barcode & QR Generation**: High-density QR codes and standard 1D barcodes (Code 128, EAN-13, UPC-A) rendered crisp and sharp for thermal heads.
+- **Dithering Pipeline**: Built-in image thresholding and Floyd-Steinberg error diffusion dithering convert photos, graphics, and logos into clean 1-bit monochrome raster data.
 
-1. In the right-hand **Canvas** panel, find **Canvas Split**.
-2. Select your grid size: **1×2**, **2×1**, **2×2**, **3×1**, or custom rows and columns up to 6×6.
-3. The editor automatically computes the usable area for each sub-section in millimeters (e.g. a 40×12 mm label split 2×1 gives two 20.0 × 12.0 mm sections).
-4. **Alignment Guides & Cut Lines**: Turn on on-screen alignment guides while designing, and optionally enable printable cut lines (**solid** or **dashed**) so you know exactly where to snip with scissors after printing.
-5. **Replicate Section**: Design your first sub-cell, then hit "Replicate Section" to clone all elements across the entire grid automatically.
-6. **Batch Variable Support**: When batch printing from CSV or sequences, variables can populate individual sub-cells so each cut label gets unique data.
+### Canvas Splitting (Multi-Labels per Sticker)
+- **Grid Sub-Sections**: Split a single physical label into grids (1×2, 2×1, 2×2, 3×1, or custom up to 6×6) to fit multiple small labels or cable markers on one sticker.
+- **Live Dimension Calculations**: View the exact width and height of each sub-cell in millimeters in real time as you adjust the grid.
+- **Section Replication**: Design an element in the first cell and replicate it across all remaining cells with a single click.
+- **Printable Cut Lines**: Add optional dashed or solid cutting guides to your print job so you know exactly where to trim with scissors.
+
+### Hardware & Roll Monitoring
+- **Automatic RFID Roll Detection**: Connects to RFID-enabled Niimbot printers and immediately identifies the inserted label dimensions, barcode, and total roll capacity.
+- **Live Sticker Counter**: Tracks remaining labels and automatically decrements the count after every print job, accompanied by background hardware verification.
+- **Third-Party Paper Compatibility**: Fully compatible with non-RFID third-party label paper. The printer uses its built-in optical gap sensors to align labels normally while the interface lets you select dimensions manually from presets.
+- **Battery Status Indicator**: Real-time printer battery gauge with automatic 1-minute polling so you always know your charge before printing large batches.
+
+### Batch Printing & Sequences
+- **CSV Data Import**: Upload spreadsheets to generate batches of product tags, shipping labels, or inventory badges.
+- **Dynamic Placeholders**: Use `{{ variable_name }}` syntax inside text blocks, barcodes, or QR codes to populate fields per record.
+- **Sequence Generator**: Automatically create numbered runs (e.g. `ASSET-0001` to `ASSET-0500`) and date-based serials with live print preview cycling.
+
+### Declarative Templates
+- Built-in customizable layouts for spice and apothecary jars, pantry containers, cable flags, retail price tags, asset management, and shipping badges.
+- Adjust template fields (title, subtitle, dates, logos, codes) without manually arranging canvas coordinates.
+
+### AI Layout Assistant
+- Generate label designs using natural language prompts.
+- **Direct Mode**: Connect Google Gemini, Anthropic Claude, OpenAI, or local models (Ollama, LM Studio) via LiteLLM.
+- **Offline Copy/Paste Mode**: Generate structured prompt bundles with live canvas previews to use with web-based ChatGPT Plus or Claude Pro, then paste the generated tool calls back into the editor.
 
 ---
 
 ## Supported Printers
 
-OpenNiimStudio communicates over Bluetooth Low Energy (BLE) and classic Bluetooth SPP:
+OpenNiimStudio communicates via Bluetooth Low Energy (BLE) and classic Bluetooth SPP:
 
-- **Niimbot**:
-  - D-series: D11, D110, D110_M, D101
-  - B-series: B1, B21, B3S, B24, B18, B203
-  - Automatic RFID roll detection (reads label dimensions, barcode, and remaining count)
-- **Phomemo**:
-  - M-series (M02, M03, M04, M110, M200, M220)
-  - D30, T02, P12, PM-241
-- **Generic thermal printers**:
-  - Over 130 portable printer models using common protocols (V5G, V5X, Luck, Eleph TSPL/ESC, Instaprint, Funny LX)
+### Niimbot
+- **D-Series**: D11, D110, D110_M, D101
+- **B-Series**: B1, B21, B3S, B24, B18, B203
+- Supports automatic RFID roll reading, gap detection, continuous rolls, and non-RFID third-party paper.
+
+### Phomemo
+- **M-Series**: M02, M03, M04, M110, M200, M220
+- **Other Models**: D30, T02, P12, PM-241
+
+### Generic Thermal Printers
+- Over 130 portable printer models supported via common protocol implementations:
+  - V5G / V5X
+  - Luck / Luck A4
+  - Eleph TSPL / ESC
+  - Instaprint
+  - Funny LX
 
 ---
 
-## Quick Start
+## How Bluetooth Printing Works
 
-### Option 1: Docker (Recommended for Servers & NAS)
+Browsers enforce strict security boundaries for local hardware access. OpenNiimStudio provides two ways to connect depending on your browser and network environment:
 
-You don't need Python or Node installed on your server. You can pull the prebuilt image directly from the Forgejo container registry:
+```
+┌────────────────────────────────────────────────────────┐
+│               Your Browser (OpenNiimStudio)            │
+└──────────────┬─────────────────────────┬───────────────┘
+               │ (Chrome/Edge/HTTPS)     │ (Firefox/Safari/HTTP)
+               ▼                         ▼
+┌───────────────────────────┐  ┌───────────────────────────┐
+│ Direct Web Bluetooth API  │  │ Local Print Helper Script │
+│ (Zero install, 1-click)   │  │ (openniim-helper.py)      │
+└──────────────┬────────────┘  └─────────────┬─────────────┘
+               │                             │ ws://127.0.0.1:9123
+               ▼                             ▼
+       ┌─────────────────────────────────────────────┐
+       │       Local Bluetooth Thermal Printer       │
+       └─────────────────────────────────────────────┘
+```
 
-1. Create a `docker-compose.yml` file:
+### 1. Direct Web Bluetooth (Zero Installation)
+- **Supported Browsers**: Google Chrome, Microsoft Edge, Brave, Opera, Chrome for Android, and Bluefy (iOS).
+- **Requirements**: Served over `localhost` or **HTTPS** (Web Bluetooth is disabled by browsers over unencrypted remote HTTP).
+- **How to use**: Click **Connect Browser Bluetooth** in the sidebar, choose your printer from the native browser prompt, and print directly. No local software needed.
+
+### 2. Local Print Helper (`openniim-helper.py`)
+- **Supported Browsers**: Mozilla Firefox, Apple Safari, or any browser accessing OpenNiimStudio over local HTTP (e.g. `http://192.168.1.50:8000`).
+- **How to use**: Download and run the lightweight companion script on your computer:
+  ```bash
+  python3 openniim-helper.py
+  ```
+- **How it works**: The script communicates with your printer using your operating system's native Bluetooth stack and relays commands to OpenNiimStudio over a local WebSocket (`ws://127.0.0.1:9123`).
+- **Auto-Shutdown**: Automatically shuts down 15 seconds after you close all OpenNiimStudio browser tabs so it never lingers in the background.
+
+---
+
+## Installation & Deployment
+
+### Docker Compose (Recommended)
+
+Run OpenNiimStudio on a home server, Raspberry Pi, or NAS using the prebuilt container image:
 
 ```yaml
 services:
   openniimstudio:
     image: forgejo.syncedmedia.be/matieke/openniimstudio:latest
-    pull_policy: always
     container_name: openniimstudio
     restart: unless-stopped
     ports:
@@ -69,127 +124,71 @@ services:
 
 volumes:
   openniimstudio_data:
-    name: catlabel_data # Preserves existing data volumes seamlessly
+    # Preserves existing CatLabel data volumes if upgrading:
+    name: catlabel_data
 ```
 
-2. Start the service:
+Start the container:
 ```bash
 docker compose up -d
 ```
 
-3. Open `http://your-server-ip:8000` in your browser.
+Open `http://localhost:8000` (or your server's IP address) in your browser.
 
-To update to new releases in the future:
+To pull updates:
 ```bash
 docker compose pull && docker compose up -d
 ```
 
 ---
 
-### Option 2: Linux & macOS (Run from Source)
+### Running from Source
+
+Requirements: Python 3.10+ and Node.js 18+ (if building the frontend).
 
 ```bash
 git clone https://forgejo.syncedmedia.be/matieke/OpenNiimStudio.git
 cd OpenNiimStudio
-chmod +x run.sh && ./run.sh
+
+# Make run script executable and start backend
+chmod +x run.sh
+./run.sh
 ```
 
-Then visit `http://localhost:8000`.
+The application will be accessible at `http://localhost:8000`.
 
 ---
 
-## How Bluetooth Printing Works
+## Automated Releases & Container Builds
 
-Browsers have strict security policies for hardware access. OpenNiimStudio gives you two clean options depending on your setup:
+OpenNiimStudio uses a Forgejo Actions workflow (`.forgejo/workflows/docker-publish.yml`) to automate image publishing.
 
-### 1. Direct Web Bluetooth (Zero Install)
-- **Supported Browsers**: Google Chrome, Microsoft Edge, Brave, Opera, Chrome for Android.
-- **Requirement**: The app must be opened on `localhost` or served over **HTTPS** (e.g. behind Nginx Proxy Manager, Traefik, Caddy, or Cloudflare). Browsers disable Web Bluetooth over unencrypted remote HTTP.
-- **Usage**: Click **Connect Browser Bluetooth** in the sidebar. Select your printer in the browser popup and pair. No background services needed.
+Whenever a git tag is created and pushed, the runner:
+1. Builds a multi-stage, pruned production image.
+2. Tags the image with both the release version (e.g. `:0.3`) and `:latest`.
+3. Pushes the artifacts to the container registry (`forgejo.syncedmedia.be/matieke/openniimstudio`).
 
-### 2. Local Print Helper (`openniim-helper.py`)
-- **Supported Browsers**: Mozilla Firefox, Apple Safari, or any browser accessing OpenNiimStudio over plain HTTP (`http://192.168.x.x:8000`).
-- **How it works**: A tiny Python script runs locally on your computer, connects to your printer via your system's Bluetooth adapter, and bridges commands to the web app over a local WebSocket (`ws://127.0.0.1:9123`).
-- **Auto-Shutdown**: When you close all OpenNiimStudio browser tabs, the helper automatically exits after 15 seconds.
-- **Launch via Protocol**: On first run, the helper registers `openniim://start` with your OS so future launches happen automatically from the web UI.
-
-To start the helper manually:
+To publish a release:
 ```bash
-python3 openniim-helper.py
-# or from repo:
-python3 catlabel/bridge/helper.py
-```
-
----
-
-## Key Features
-
-### Visual Canvas & Positioning
-- **Scrubbable Inputs**: Type exact millimeter dimensions, or click and drag horizontally across inputs marked with `⇹` to scrub values smoothly.
-- **Custom Font Uploads**: Upload TTF or OTF fonts directly in the UI. Fonts persist in your server data volume and render cleanly on all clients.
-- **Dithering & Image Optimization**: Uploaded images and logos are converted to 1-bit monochrome using Floyd-Steinberg dithering optimized for thermal printheads.
-
-### Niimbot RFID Roll Detection
-- When you connect to an RFID-enabled Niimbot printer, OpenNiimStudio automatically reads the roll RFID tag.
-- The canvas adapts to the exact roll dimensions (e.g. `40×12 mm`), loads the proper landscape layout, and displays the paper type and remaining label count in the sidebar.
-- If you swap paper rolls, click **Re-read** in the sidebar.
-
-### Dynamic Batch Printing & Sequences
-- Import data from CSV files.
-- Use `{{ variable_name }}` syntax inside text boxes, HTML blocks, QR codes, or barcodes.
-- Generate automatic number/date sequences (e.g. `SN-2026-0001` through `SN-2026-0500`).
-- Print preview cycles through every record before sending the job to the printer.
-
-### AI Layout Assistant
-- **Live Agent Mode**: Connect OpenAI, Google Gemini, Anthropic Claude, or local inference (Ollama, LM Studio) via LiteLLM.
-- **External Copy/Paste Mode**: If you prefer using your existing ChatGPT Plus or Claude Pro subscription, generate prompt bundles with canvas previews, paste them into your chat, and paste the JSON tool calls back into OpenNiimStudio.
-
----
-
-## Docker Automation & CI/CD
-
-OpenNiimStudio includes an automated Forgejo Actions workflow (`.forgejo/workflows/docker-publish.yml`).
-
-### How Tagging & Container Builds Work
-
-Whenever you push a git tag to Forgejo, the workflow automatically:
-1. Triggers on tag creation (`refs/tags/*`).
-2. Checks out the source and sets up Docker Buildx.
-3. Builds the production image with multi-stage caching.
-4. Tags the image with both the version tag (e.g. `:0.3`) and `:latest`.
-5. Pushes the images to `forgejo.syncedmedia.be/matieke/openniimstudio`.
-
-### Creating a New Release
-
-To release a new version from your terminal:
-
-```bash
-# 1. Commit your changes
 git add .
-git commit -m "feat: release version 0.3"
-
-# 2. Create an annotated git tag
-git tag -a 0.3 -m "Release 0.3: Canvas splitting, D110_M print engine, and OpenNiimStudio rebrand"
-
-# 3. Push commits and tags to Forgejo
+git commit -m "Release version 0.3.1"
+git tag -a 0.3.1 -m "Release 0.3.1"
 git push forgejo master --tags
 ```
-
-Once pushed, Forgejo Actions handles the container build and publishing automatically.
 
 ---
 
 ## Architecture
 
-- **Frontend**: React 19 single-page app (`frontend/`) using Konva (`react-konva`) for 2D rendering, Lucide icons, and Zustand for state management.
-- **Backend**: FastAPI server (`catlabel/`) managing SQLite storage, PDF rendering, raster pipelines, and printer communication.
-- **Companion**: Bleak & websockets daemon (`catlabel/bridge/helper.py`) providing local client-side Bluetooth relaying.
+- **Frontend**: Single-page application built with React 19, Konva (`react-konva`) for interactive canvas manipulation, Lucide icons, and Zustand for state management.
+- **Backend**: FastAPI server (`catlabel/`) handling local SQLite persistence, thermal print rasterization, PDF rendering, and server-side Bluetooth relays.
+- **Companion**: Standalone Python daemon (`catlabel/bridge/helper.py`) utilizing Bleak and websockets for non-Web Bluetooth client environments.
 
 ---
 
-## License & Acknowledgements
+## License & Credits
 
-OpenNiimStudio is licensed under the **Apache License 2.0**.
+OpenNiimStudio is open-source software licensed under the **Apache License 2.0**.
 
-- Forked from [TiMini Print](https://github.com/Dejniel/TiMini-Print) by Dejniel.
-- Niimbot BLE reverse engineering based on research from [NiimBlueLib](https://github.com/MultiMote/niimbluelib).
+- Forked originally from [TiMini Print](https://github.com/Dejniel/TiMini-Print) by Dejniel.
+- Reverse engineering of Niimbot protocols is built upon research from [NiimBlueLib](https://github.com/MultiMote/niimbluelib).

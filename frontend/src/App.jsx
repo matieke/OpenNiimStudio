@@ -24,6 +24,10 @@ function App() {
   const isHeadless = new URLSearchParams(window.location.search).get('mode') === 'headless';
 
   useEffect(() => {
+    document.title = 'OpenNiimStudio';
+  }, []);
+
+  useEffect(() => {
     fetchFonts();
   }, [fetchFonts]);
 
