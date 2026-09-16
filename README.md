@@ -46,6 +46,25 @@ https://github.com/user-attachments/assets/4e784645-0ccf-478c-a6e1-0c41a3519624
 
 *The app runs at [http://localhost:8000](http://localhost:8000).*
 
+### Docker (Server & Self-Hosted)
+CatLabel includes a production multi-stage `Dockerfile` and `docker-compose.yml` with persistent storage for your projects, templates, and fonts:
+
+1. Clone the repository on your server:
+   ```bash
+   git clone https://forgejo.syncedmedia.be/matieke/OpenNiimStudio.git catlabel
+   cd catlabel
+   ```
+2. Start the container:
+   ```bash
+   docker compose up -d --build
+   ```
+3. Open `http://your-server-ip:8000` in your browser.
+
+> **Note on Bluetooth & HTTPS**:
+> Modern browsers (Chrome, Edge) require a secure HTTPS origin to access the **Web Bluetooth API** over a network.
+> - **With HTTPS**: Set up a reverse proxy (Caddy, Nginx Proxy Manager, Traefik) with an SSL certificate. Direct Web Bluetooth works seamlessly!
+> - **Without HTTPS (HTTP)**: Download and run the lightweight [Local Print Helper](catlabel/bridge/helper.py) (`python3 catlabel-helper.py`) on your workstation/laptop. CatLabel will automatically bridge to it over `ws://127.0.0.1:9123` to scan and print.
+
 ---
 
 ## Instruction Manual & Features
