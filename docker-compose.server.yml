@@ -2,7 +2,8 @@
 # Deploy directly without git or building from source
 services:
   catlabel:
-    image: forgejo.syncedmedia.be/matieke/openniimstudio:0.2
+    image: forgejo.syncedmedia.be/matieke/openniimstudio:latest
+    pull_policy: always
     container_name: catlabel
     restart: unless-stopped
     ports:
