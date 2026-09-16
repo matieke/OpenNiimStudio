@@ -167,7 +167,9 @@ export async function printViaWebBluetooth(client, images, options = {}) {
       const canvas = await dataUrlToCanvas(dataUrl);
 
       // NiimBlueLib takes 'left' for rotated (90 deg clockwise) or 'top' for upright
-      const direction = isRotated ? 'left' : 'top';
+      // If canvas is landscape (width > height), orientation must be 'left' so cols matches the physical printhead width
+      const isLandscape = canvas.width > canvas.height;
+      const direction = (isRotated || isLandscape) ? 'left' : 'top';
       const encoded = ImageEncoder.encodeCanvas(canvas, 'black', direction);
 
       const printTask = client.protocol.newPrintTask(taskType, {

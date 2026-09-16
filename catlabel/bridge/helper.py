@@ -452,6 +452,28 @@ def make_niimbot_packet(type_: int, data: bytes = b"") -> bytes:
     return bytes((0x55, 0x55, type_, len(data), *data, checksum, 0xAA, 0xAA))
 
 
+def count_pixels_for_bitmap(
+    line_data: bytes, printhead_pixels: int = 96
+) -> Tuple[int, Tuple[int, int, int], bytes]:
+    chunk_size = max(1, printhead_pixels // 8 // 3)
+    total = 0
+    parts = [0, 0, 0]
+    indices = []
+
+    for byte_idx, b in enumerate(line_data):
+        if b == 0:
+            continue
+        chunk_idx = min(2, byte_idx // chunk_size)
+        for bit in range(8):
+            if b & (1 << (7 - bit)):
+                total += 1
+                parts[chunk_idx] += 1
+                pixel_idx = byte_idx * 8 + bit
+                indices.extend([(pixel_idx >> 8) & 0xFF, pixel_idx & 0xFF])
+
+    return total, (min(255, parts[0]), min(255, parts[1]), min(255, parts[2])), bytes(indices)
+
+
 async def print_niimbot_ble(mac: str, pil_images: List[any], progress_cb=None):
     from bleak import BleakClient
     from PIL import Image
@@ -489,61 +511,89 @@ async def print_niimbot_ble(mac: str, pil_images: List[any], progress_cb=None):
         if progress_cb:
             await progress_cb(20, "Initializing print session...")
 
-        # 1. Set label type (1 = gap label)
+        # 1. Start print session (cmd 1: 0x01)
+        await send(1, b"\x01")
+        # 2. Set label type (cmd 35: 0x01 = gap label)
         await send(35, b"\x01")
-        # 2. Set label density (3 = normal/high)
+        # 3. Set label density (cmd 33: 0x03 = normal/high)
         await send(33, b"\x03")
-        # 3. Allow print clear
-        await send(32, b"\x01")
 
         total_pages = len(pil_images)
-        for page_idx, img in enumerate(pil_images):
+        for page_idx, raw_img in enumerate(pil_images):
             if progress_cb:
                 pct = int(25 + (page_idx / total_pages) * 70)
                 await progress_cb(pct, f"Printing label {page_idx + 1}/{total_pages}...")
+
+            img = raw_img.copy()
+
+            # If landscape label (width > height), rotate so width fits the physical printhead (96-120px)
+            # and height aligns with the paper feed direction
+            if img.width > img.height:
+                img = img.rotate(90, expand=True)
+
+            # Ensure width is padded to multiple of 8
+            remainder = img.width % 8
+            if remainder != 0:
+                new_w = img.width + (8 - remainder)
+                padded = Image.new("RGB", (new_w, img.height), "white")
+                padded.paste(img, (0, 0))
+                img = padded
 
             # Convert PIL image to 1-bit monochrome (black = 1, white = 0)
             gray = img.convert("L")
             bw = gray.point(lambda x: 0 if x > 128 else 1, "1")
             width, height = bw.size
-
-            # D110 uses 96 pixels across print head (12 bytes per row)
-            line_bytes_len = (width + 7) // 8
+            width_bytes = (width + 7) // 8
             pixels = bw.load()
 
-            # Start page print: [total_pages_high, total_pages_low]
-            await send(3, struct.pack(">H", 1))
-            # Set dimension: [height_high, height_low, width_high, width_low]
-            await send(19, struct.pack(">HH", height, width))
-            # Start print
-            await send(1, b"\x01")
-
+            packed_rows = []
             for y in range(height):
-                row_bits = bytearray(line_bytes_len)
-                has_pixels = False
+                row_bytes = bytearray(width_bytes)
                 for x in range(width):
                     if pixels[x, y] == 1:
-                        row_bits[x // 8] |= (1 << (7 - (x % 8)))
-                        has_pixels = True
+                        row_bytes[x // 8] |= (1 << (7 - (x % 8)))
+                packed_rows.append(bytes(row_bytes))
 
-                if has_pixels:
-                    # Niimbot line packet: 0x85 (133), row header + bitmap bytes
-                    # Chunk index bytes for D110
-                    header = struct.pack(">H", y)
-                    await send(133, header + bytes(row_bits))
+            # Allow print clear: cmd 32
+            await send(32, b"\x01")
+
+            # Start page print: cmd 3 -> 1 page
+            await send(3, struct.pack(">H", 1))
+
+            # Set dimension: cmd 19 -> [height_hi, height_lo, width_hi, width_lo]
+            await send(19, struct.pack(">HH", height, width))
+
+            # Set quantity: cmd 21 -> 1 copy
+            await send(21, struct.pack(">H", 1))
+
+            printhead_pixels = max(96, width)
+
+            for y in range(height):
+                line_data = packed_rows[y]
+                total_black, parts, indices = count_pixels_for_bitmap(line_data, printhead_pixels)
+
+                if total_black == 0:
+                    # Empty row: cmd 132 (0x84), payload: [row_hi, row_lo, repeats]
+                    await send(132, struct.pack(">HB", y, 1))
+                elif total_black <= 6 and indices:
+                    # Indexed row: cmd 131 (0x83)
+                    header = struct.pack(">HBBBB", y, parts[0], parts[1], parts[2], 1)
+                    await send(131, header + indices)
                 else:
-                    # Empty row
-                    await send(132, struct.pack(">H", y))
+                    # Bitmap row: cmd 133 (0x85) with proper 6-byte header
+                    header = struct.pack(">HBBBB", y, parts[0], parts[1], parts[2], 1)
+                    await send(133, header + line_data)
 
-                if y % 15 == 0:
+                if y % 16 == 0:
                     await asyncio.sleep(0.01)
 
-            # End page print
+            # End page print: cmd 227
             await send(227, b"\x01")
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.5)
 
-        # End entire print job
+        # End entire print job: cmd 243
         await send(243, b"\x01")
+        await asyncio.sleep(0.5)
         logger.info("Print job sent successfully.")
         if progress_cb:
             await progress_cb(100, "Done")
