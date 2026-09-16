@@ -536,18 +536,21 @@ async def print_niimbot_ble(mac: str, pil_images: List[any], progress_cb=None):
             await client.write_gatt_char(target_char, pkt, response=use_response)
             await asyncio.sleep(0.015)
 
-        logger.info("Sending print initialization packets...")
+        logger.info("Sending print initialization packets for Niimbot (D110_M / B1 protocol)...")
         if progress_cb:
             await progress_cb(20, "Initializing print session...")
 
-        # 1. Start print session (cmd 1: 0x01)
-        await send(1, b"\x01")
+        # 1. Set label density (cmd 33: 0x03 = normal/high)
+        await send(33, b"\x03")
         # 2. Set label type (cmd 35: 0x01 = gap label)
         await send(35, b"\x01")
-        # 3. Set label density (cmd 33: 0x03 = normal/high)
-        await send(33, b"\x03")
 
+        # 3. Start print session with 7-byte B1/D110_M payload:
+        # [total_pages_hi, total_pages_lo, 0, 0, 0, 0, page_color=1]
         total_pages = len(pil_images)
+        start_payload = struct.pack(">H4BB", total_pages, 0, 0, 0, 0, 1)
+        await send(1, start_payload)
+
         for page_idx, raw_img in enumerate(pil_images):
             if progress_cb:
                 pct = int(25 + (page_idx / total_pages) * 70)
@@ -555,8 +558,8 @@ async def print_niimbot_ble(mac: str, pil_images: List[any], progress_cb=None):
 
             img = raw_img.copy()
 
-            # If landscape label (width > height), rotate so width fits the physical printhead (96-120px)
-            # and height aligns with the paper feed direction
+            # If landscape label (width > height), rotate 90 degrees so width fits the physical printhead
+            # D110 roll feeds lengthwise: width must match printhead (96px)
             if img.width > img.height:
                 img = img.rotate(90, expand=True)
 
@@ -568,32 +571,26 @@ async def print_niimbot_ble(mac: str, pil_images: List[any], progress_cb=None):
                 padded.paste(img, (0, 0))
                 img = padded
 
-            # Convert PIL image to 1-bit monochrome (black = 1, white = 0)
+            # Convert to grayscale and build packed 1-bit line buffers (0=black, 255=white in PIL 'L')
             gray = img.convert("L")
-            bw = gray.point(lambda x: 0 if x > 128 else 1, "1")
-            width, height = bw.size
+            width, height = gray.size
             width_bytes = (width + 7) // 8
-            pixels = bw.load()
+            pixels = gray.load()
 
             packed_rows = []
             for y in range(height):
                 row_bytes = bytearray(width_bytes)
                 for x in range(width):
-                    if pixels[x, y] == 1:
+                    # In grayscale 'L', values < 128 are dark/black pixels
+                    if pixels[x, y] < 128:
                         row_bytes[x // 8] |= (1 << (7 - (x % 8)))
                 packed_rows.append(bytes(row_bytes))
 
-            # Allow print clear: cmd 32
-            await send(32, b"\x01")
+            # Start page print: cmd 3 (1 byte 0x01)
+            await send(3, b"\x01")
 
-            # Start page print: cmd 3 -> 1 page
-            await send(3, struct.pack(">H", 1))
-
-            # Set dimension: cmd 19 -> [height_hi, height_lo, width_hi, width_lo]
-            await send(19, struct.pack(">HH", height, width))
-
-            # Set quantity: cmd 21 -> 1 copy
-            await send(21, struct.pack(">H", 1))
+            # Set dimension for B1/D110_M: cmd 19 -> 6 bytes [height_hi, height_lo, width_hi, width_lo, copies_hi, copies_lo]
+            await send(19, struct.pack(">HHH", height, width, 1))
 
             printhead_pixels = max(96, width)
 
@@ -605,22 +602,23 @@ async def print_niimbot_ble(mac: str, pil_images: List[any], progress_cb=None):
                     # Empty row: cmd 132 (0x84), payload: [row_hi, row_lo, repeats]
                     await send(132, struct.pack(">HB", y, 1))
                 elif total_black <= 6 and indices:
-                    # Indexed row: cmd 131 (0x83)
+                    # Indexed row: cmd 131 (0x83), payload: [row_hi, row_lo, chunk0, chunk1, chunk2, repeats, indices...]
                     header = struct.pack(">HBBBB", y, parts[0], parts[1], parts[2], 1)
                     await send(131, header + indices)
                 else:
-                    # Bitmap row: cmd 133 (0x85) with proper 6-byte header
+                    # Bitmap row: cmd 133 (0x85) with 6-byte header
                     header = struct.pack(">HBBBB", y, parts[0], parts[1], parts[2], 1)
                     await send(133, header + line_data)
 
                 if y % 16 == 0:
                     await asyncio.sleep(0.01)
 
-            # End page print: cmd 227
+            # End page print: cmd 227 (1 byte 0x01)
             await send(227, b"\x01")
-            await asyncio.sleep(0.5)
+            # Wait for physical thermal printing and paper feed to advance
+            await asyncio.sleep(1.8)
 
-        # End entire print job: cmd 243
+        # End entire print session: cmd 243 (1 byte 0x01)
         await send(243, b"\x01")
         await asyncio.sleep(0.5)
         logger.info("Print job sent successfully.")
