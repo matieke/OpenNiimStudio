@@ -361,6 +361,21 @@ export default function ProjectTree() {
     const file = e.target.files[0];
     if (!file) return;
 
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (parsed && (parsed.version !== undefined || parsed.projects !== undefined)) {
+        const res = useStore.getState().importWorkspaceData(text);
+        if (res.success) {
+          alert(`Successfully imported workspace backup (${res.projectCount || 0} projects, ${res.categoryCount || 0} folders)!`);
+          e.target.value = null;
+          return;
+        }
+      }
+    } catch (_err) {
+      // Not a client storage backup, proceed with backend endpoint
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -375,6 +390,24 @@ export default function ProjectTree() {
       alert(err.message);
     }
     e.target.value = null;
+  };
+
+  const handleExportWorkspace = () => {
+    try {
+      const dataStr = useStore.getState().exportWorkspaceData();
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `catlabel_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Failed to export workspace backup.');
+    }
   };
 
   const handleMove = (dragged, targetCategoryId) => {
@@ -398,23 +431,32 @@ export default function ProjectTree() {
 
   return (
     <div className="flex flex-col gap-2 mt-2 w-full select-none">
-      <div className="flex gap-1 mb-1">
+      <div className="grid grid-cols-4 gap-1 mb-1">
         <button
           onClick={() => setCreatingRoot({ type: 'category' })}
-          className="flex-1 flex items-center justify-center gap-1 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-[10px] uppercase font-bold tracking-wider"
+          className="flex items-center justify-center gap-1 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-[10px] uppercase font-bold tracking-wider"
+          title="Create a new folder"
         >
           <Plus size={12} /> Folder
         </button>
         <button
           onClick={() => setCreatingRoot({ type: 'project' })}
-          className="flex-1 flex items-center justify-center gap-1 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-[10px] uppercase font-bold tracking-wider"
+          className="flex items-center justify-center gap-1 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-[10px] uppercase font-bold tracking-wider"
+          title="Save current design"
         >
           <Save size={12} /> Save
         </button>
-        <label className="flex-1 flex items-center justify-center gap-1 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-[10px] uppercase font-bold tracking-wider cursor-pointer">
+        <label className="flex items-center justify-center gap-1 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-[10px] uppercase font-bold tracking-wider cursor-pointer" title="Import labels or backup">
           <Upload size={12} /> Import
           <input type="file" accept=".json" className="hidden" onClick={(e) => e.target.value = null} onChange={(e) => handleImport(e, null)} />
         </label>
+        <button
+          onClick={handleExportWorkspace}
+          title="Download full backup to this device"
+          className="flex items-center justify-center gap-1 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors text-[10px] uppercase font-bold tracking-wider"
+        >
+          <Download size={12} /> Backup
+        </button>
       </div>
 
       <div 

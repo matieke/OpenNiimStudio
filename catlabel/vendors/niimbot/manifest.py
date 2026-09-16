@@ -42,6 +42,8 @@ class NiimbotManifest(VendorManifest):
 
     def get_presets(self) -> List[Dict]:
         return [
+            {"name": "Pre-cut: Niimbot 22x12mm", "media_type": "pre-cut", "description": "Standard mini Niimbot D-series label.", "width_mm": 22, "height_mm": 12, "is_rotated": True, "split_mode": False, "border": "none"},
+            {"name": "Pre-cut: Niimbot 30x12mm", "media_type": "pre-cut", "description": "Standard mini Niimbot D-series label.", "width_mm": 30, "height_mm": 12, "is_rotated": True, "split_mode": False, "border": "none"},
             {"name": "Pre-cut: Niimbot 30x15mm", "media_type": "pre-cut", "description": "Standard small Niimbot D-series label.", "width_mm": 30, "height_mm": 15, "is_rotated": True, "split_mode": False, "border": "none"},
             {"name": "Pre-cut: Niimbot 40x12mm", "media_type": "pre-cut", "description": "Standard medium Niimbot D-series label.", "width_mm": 40, "height_mm": 12, "is_rotated": True, "split_mode": False, "border": "none"},
             {"name": "Pre-cut: Niimbot 50x14mm", "media_type": "pre-cut", "description": "Standard large Niimbot D-series label.", "width_mm": 50, "height_mm": 14, "is_rotated": True, "split_mode": False, "border": "none"},

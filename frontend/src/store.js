@@ -14,6 +14,34 @@ import {
   MAX_PRINT_JOBS,
   MAX_RENDER_PIXELS
 } from './utils/batchData';
+import {
+  loadClientSettings,
+  saveClientSettings,
+  loadClientProjects,
+  saveClientProjects,
+  loadClientCategories,
+  saveClientCategories,
+  loadClientPrinterProfile,
+  saveClientPrinterProfile,
+  loadClientRfidPresets,
+  saveClientRfidPreset,
+  exportAllClientData,
+  importAllClientData,
+  DEFAULT_SETTINGS
+} from './utils/clientStorage';
+import {
+  isWebBluetoothSupported,
+  connectWebBluetoothPrinter,
+  disconnectWebBluetoothPrinter,
+  printViaWebBluetooth,
+  getWebBluetoothRfidInfo
+} from './utils/webBluetoothClient';
+import {
+  checkBridgeStatus,
+  launchBridgeViaProtocol,
+  LocalBridgeClient
+} from './utils/localBridgeClient';
+import { getBluetoothCapability } from './utils/browserDetection';
 
 const recalcAutoFit = (items, batchRecords, cw, ch, splitSections) => {
   let changed = false;
@@ -316,8 +344,8 @@ export const useStore = create(withHistory((set, get) => ({
   selectedId: null,
   selectedIds: [],
   zoomScale: 1,
-  canvasWidth: 384,
-  canvasHeight: 384,
+  canvasWidth: 320,
+  canvasHeight: 96,
   canvasBorder: 'none',
   canvasBorderThickness: 4,
   splitSections: {
@@ -329,10 +357,22 @@ export const useStore = create(withHistory((set, get) => ({
     showGuides: true
   },
   splitMode: false,
-  isRotated: false,
+  isRotated: true,
   selectedPrinter: null,
   selectedPrinterInfo: null,
+  webBluetoothSession: null,
+  webBluetoothProgress: 0,
+  browserCapability: typeof window !== 'undefined' ? getBluetoothCapability() : null,
+  webBluetoothSupported: typeof window !== 'undefined' && isWebBluetoothSupported(),
+  bridgeClient: null,
+  bridgeConnected: false,
+  bridgeChecking: false,
+  showHelperSetupModal: false,
+  setShowHelperSetupModal: (val) => set({ showHelperSetupModal: val }),
   pageLayouts: [{ pageIndex: 0, htmlContent: '', activeTemplate: null }],
+  loadedPaperInfo: null,
+  isReadingRfid: false,
+  setLoadedPaperInfo: (val) => set({ loadedPaperInfo: val }),
   showAiConfig: false,
   setShowAiConfig: (val) => set({ showAiConfig: val }),
   apiError: '',
@@ -471,6 +511,89 @@ export const useStore = create(withHistory((set, get) => ({
     }
     return { manualPrinters: newManual };
   }),
+  connectWebBluetooth: async () => {
+    try {
+      const session = await connectWebBluetoothPrinter();
+      const printerObj = {
+        address: session.address,
+        name: session.deviceName,
+        model_id: session.model_id,
+        vendor: session.vendor,
+        transport: 'web_bluetooth',
+        dpi: session.dpi,
+        paired: true,
+        width_mm: Math.round(session.dpi === 300 ? 50 : 48),
+      };
+      set((state) => {
+        const newManual = [...state.manualPrinters.filter((p) => p.address !== session.address), printerObj];
+        if (typeof window !== 'undefined') {
+          try {
+            window.localStorage.setItem('catlabel_manual_printers', JSON.stringify(newManual));
+          } catch (_e) {}
+        }
+        return {
+          webBluetoothSession: session,
+          manualPrinters: newManual,
+          selectedPrinter: session.address,
+          selectedPrinterInfo: printerObj,
+        };
+      });
+      await get().setSelectedPrinter(session.address, printerObj);
+      return { success: true, session };
+    } catch (e) {
+      console.error('Web Bluetooth connection failed:', e);
+      alert(`Could not connect via Web Bluetooth:\n\n${e.message || e}`);
+      return { success: false, error: e };
+    }
+  },
+  disconnectWebBluetooth: async () => {
+    const session = get().webBluetoothSession;
+    if (session) {
+      await disconnectWebBluetoothPrinter(session.client);
+      set({ webBluetoothSession: null });
+    }
+  },
+  connectBridge: async () => {
+    set({ bridgeChecking: true });
+    try {
+      const existing = get().bridgeClient;
+      if (existing && existing.isConnected) {
+        set({ bridgeConnected: true, bridgeChecking: false });
+        return { success: true };
+      }
+
+      const client = new LocalBridgeClient();
+      client.onDisconnect = () => {
+        set({ bridgeConnected: false, bridgeClient: null });
+      };
+      await client.connect();
+      set({ bridgeClient: client, bridgeConnected: true, bridgeChecking: false });
+      return { success: true };
+    } catch (e) {
+      set({ bridgeConnected: false, bridgeChecking: false });
+      return { success: false, error: e };
+    }
+  },
+  disconnectBridge: () => {
+    const client = get().bridgeClient;
+    if (client) {
+      client.disconnect();
+    }
+    set({ bridgeClient: null, bridgeConnected: false });
+  },
+  launchBridgeHelper: () => {
+    launchBridgeViaProtocol();
+    setTimeout(() => {
+      get().connectBridge();
+    }, 1500);
+  },
+  scanViaBridge: async () => {
+    const client = get().bridgeClient;
+    if (!client || !client.isConnected) {
+      throw new Error('Helper bridge not connected');
+    }
+    return client.scanPrinters();
+  },
   batchRecords: [{}],
   printCopies: 1,
   theme: 'auto',
@@ -676,7 +799,49 @@ export const useStore = create(withHistory((set, get) => ({
       return;
     }
 
-    set({ isPrinting: true });
+    set({ isPrinting: true, webBluetoothProgress: 0 });
+
+    const isWebBle = Boolean(
+      state.webBluetoothSession &&
+      (state.selectedPrinter === state.webBluetoothSession.address ||
+       state.selectedPrinterInfo?.transport === 'web_bluetooth')
+    );
+
+    if (isWebBle) {
+      try {
+        await printViaWebBluetooth(state.webBluetoothSession.client, images, {
+          copies: pendingPrintJob.copies || 1,
+          isRotated: pendingPrintJob.canvasState.isRotated || false,
+          density: state.printerProfile?.energy || 3,
+          onProgress: (p) => set({ webBluetoothProgress: p })
+        });
+      } catch (e) {
+        console.error('Web Bluetooth print error:', e);
+        alert(`Failed to print via Web Bluetooth:\n\n${e.message || e}`);
+      } finally {
+        set({ isPrinting: false, pendingPrintJob: null, webBluetoothProgress: 0 });
+      }
+      return;
+    }
+
+    if (state.bridgeConnected && state.bridgeClient) {
+      try {
+        await state.bridgeClient.printImages({
+          mac_address: pendingPrintJob.macAddress,
+          images,
+          split_mode: pendingPrintJob.splitMode,
+          dither: pendingPrintJob.dither
+        }, (p) => {
+          set({ webBluetoothProgress: p });
+        });
+      } catch (e) {
+        console.error('Print Helper error:', e);
+        alert(`Failed to print via local helper:\n\n${e.message || e}`);
+      } finally {
+        set({ isPrinting: false, pendingPrintJob: null, webBluetoothProgress: 0 });
+      }
+      return;
+    }
 
     try {
       await apiFetch(`/api/print/images`, {
@@ -882,55 +1047,93 @@ export const useStore = create(withHistory((set, get) => ({
   },
 
   fetchProjects: async () => {
+    const clientProjects = loadClientProjects();
+    const clientCategories = loadClientCategories();
+    if (clientProjects !== null && clientCategories !== null) {
+      set({ projects: clientProjects, categories: clientCategories });
+      return;
+    }
+
     try {
       const [projects, categories] = await Promise.all([
         apiJson('/api/projects', {}, { validate: isArrayPayload, validationMessage: 'Project data is malformed.' }),
         apiJson('/api/categories', {}, { validate: isArrayPayload, validationMessage: 'Category data is malformed.' })
       ]);
-      set({ projects, categories });
+      const finalProjs = projects || [];
+      const finalCats = categories || [];
+      saveClientProjects(finalProjs);
+      saveClientCategories(finalCats);
+      set({ projects: finalProjs, categories: finalCats });
     } catch (e) {
-      console.error("Failed to fetch projects/categories", e);
-      set({ apiError: errorMessage(e, 'Failed to load projects and folders.') });
+      console.warn("Could not fetch server projects/categories, using local storage", e);
+      const finalProjs = clientProjects || [];
+      const finalCats = clientCategories || [];
+      saveClientProjects(finalProjs);
+      saveClientCategories(finalCats);
+      set({ projects: finalProjs, categories: finalCats });
     }
   },
 
   createCategory: async (name, parentId = null) => {
+    const newCat = { id: Date.now(), name, parent_id: parentId };
+    const current = get().categories || [];
+    const updated = [...current, newCat];
+    saveClientCategories(updated);
+    set({ categories: updated });
+
     try {
       await apiFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, parent_id: parentId })
       });
-      useStore.getState().fetchProjects();
-    } catch (e) {
-      console.error(e);
-      set({ apiError: errorMessage(e, 'Failed to create the folder.') });
-    }
+    } catch (_e) {}
   },
 
   updateCategory: async (id, name = undefined, parentId = undefined) => {
+    const current = get().categories || [];
+    const updated = current.map((c) => c.id === id ? {
+      ...c,
+      ...(name !== undefined ? { name } : {}),
+      ...(parentId !== undefined ? { parent_id: parentId } : {})
+    } : c);
+    saveClientCategories(updated);
+    set({ categories: updated });
+
     try {
       await apiFetch(`/api/categories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, parent_id: parentId })
       });
-      useStore.getState().fetchProjects();
-    } catch (e) {
-      console.error(e);
-      set({ apiError: errorMessage(e, 'Failed to update the folder.') });
-    }
+    } catch (_e) {}
   },
 
   deleteCategory: async (id) => {
     if (!window.confirm("Delete this folder AND all its contents recursively?")) return;
+    const currentCats = get().categories || [];
+    const currentProjs = get().projects || [];
+
+    const idsToDelete = new Set([id]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const cat of currentCats) {
+        if (cat.parent_id && idsToDelete.has(cat.parent_id) && !idsToDelete.has(cat.id)) {
+          idsToDelete.add(cat.id);
+          added = true;
+        }
+      }
+    }
+    const remainingCats = currentCats.filter((c) => !idsToDelete.has(c.id));
+    const remainingProjs = currentProjs.filter((p) => !idsToDelete.has(p.category_id));
+    saveClientCategories(remainingCats);
+    saveClientProjects(remainingProjs);
+    set({ categories: remainingCats, projects: remainingProjs });
+
     try {
       await apiFetch(`/api/categories/${id}`, { method: 'DELETE' });
-      useStore.getState().fetchProjects();
-    } catch (e) {
-      console.error(e);
-      set({ apiError: errorMessage(e, 'Failed to delete the folder.') });
-    }
+    } catch (_e) {}
   },
 
   saveProject: async (name, categoryId = null) => {
@@ -939,6 +1142,28 @@ export const useStore = create(withHistory((set, get) => ({
     const batchRecords = state.batchRecords || [{}];
     const printCopies = state.printCopies || 1;
     
+    const canvasState = {
+      width: state.canvasWidth, height: state.canvasHeight,
+      isRotated: state.isRotated, canvasBorder: state.canvasBorder,
+      canvasBorderThickness: thickness, splitSections: state.splitSections, splitMode: state.splitMode,
+      pageLayouts: state.pageLayouts,
+      items: state.items, currentPage: state.currentPage,
+      batchRecords, printCopies
+    };
+
+    const newProject = {
+      id: Date.now(),
+      name,
+      category_id: categoryId,
+      canvas_state: canvasState,
+      canvas_state_json: JSON.stringify(canvasState)
+    };
+
+    const currentProjs = get().projects || [];
+    const updatedProjs = [...currentProjs, newProject];
+    saveClientProjects(updatedProjs);
+    set({ projects: updatedProjs, currentProjectId: newProject.id });
+
     try {
       const res = await apiFetch('/api/projects', {
         method: 'POST',
@@ -946,24 +1171,16 @@ export const useStore = create(withHistory((set, get) => ({
         body: JSON.stringify({
           name,
           category_id: categoryId,
-          canvas_state: {
-            width: state.canvasWidth, height: state.canvasHeight,
-            isRotated: state.isRotated, canvasBorder: state.canvasBorder,
-            canvasBorderThickness: thickness, splitSections: state.splitSections, splitMode: state.splitMode,
-            pageLayouts: state.pageLayouts,
-            items: state.items, currentPage: state.currentPage,
-            batchRecords, printCopies
-          }
+          canvas_state: canvasState
         })
       });
       const data = await res.json();
-      if (!isObjectPayload(data) || data.id === undefined) throw new Error('The saved project response is malformed.');
-      set({ currentProjectId: data.id });
-      useStore.getState().fetchProjects();
-    } catch (e) {
-      console.error(e);
-      set({ apiError: errorMessage(e, 'Failed to save the project.') });
-    }
+      if (isObjectPayload(data) && data.id !== undefined) {
+        const synced = (get().projects || []).map((p) => p.id === newProject.id ? { ...p, id: data.id } : p);
+        saveClientProjects(synced);
+        set({ projects: synced, currentProjectId: data.id });
+      }
+    } catch (_e) {}
   },
 
   updateProject: async (id, newName = null, newCategoryId = undefined) => {
@@ -972,44 +1189,66 @@ export const useStore = create(withHistory((set, get) => ({
     const batchRecords = state.batchRecords || [{}];
     const printCopies = state.printCopies || 1;
     
-    const payload = {
-      canvas_state: {
-        width: state.canvasWidth, height: state.canvasHeight,
-        isRotated: state.isRotated, canvasBorder: state.canvasBorder,
-        canvasBorderThickness: thickness, splitSections: state.splitSections, splitMode: state.splitMode,
-        pageLayouts: state.pageLayouts,
-        items: state.items, currentPage: state.currentPage,
-        batchRecords, printCopies
-      }
+    const canvasState = {
+      width: state.canvasWidth, height: state.canvasHeight,
+      isRotated: state.isRotated, canvasBorder: state.canvasBorder,
+      canvasBorderThickness: thickness, splitSections: state.splitSections, splitMode: state.splitMode,
+      pageLayouts: state.pageLayouts,
+      items: state.items, currentPage: state.currentPage,
+      batchRecords, printCopies
     };
-    if (newName) payload.name = newName;
-    if (newCategoryId !== undefined) payload.category_id = newCategoryId;
+
+    const currentProjs = get().projects || [];
+    const updatedProjs = currentProjs.map((p) => {
+      if (p.id !== id) return p;
+      return {
+        ...p,
+        canvas_state: canvasState,
+        canvas_state_json: JSON.stringify(canvasState),
+        ...(newName ? { name: newName } : {}),
+        ...(newCategoryId !== undefined ? { category_id: newCategoryId } : {})
+      };
+    });
+    saveClientProjects(updatedProjs);
+    set({ projects: updatedProjs });
 
     try {
+      const payload = { canvas_state: canvasState };
+      if (newName) payload.name = newName;
+      if (newCategoryId !== undefined) payload.category_id = newCategoryId;
       await apiFetch(`/api/projects/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      useStore.getState().fetchProjects();
-    } catch (e) {
-      console.error(e);
-      set({ apiError: errorMessage(e, 'Failed to update the project.') });
-    }
+    } catch (_e) {}
   },
 
   deleteProject: async (id) => {
     if (!window.confirm("Are you sure you want to delete this project?")) return;
+    const currentProjs = get().projects || [];
+    const updatedProjs = currentProjs.filter((p) => p.id !== id);
+    saveClientProjects(updatedProjs);
+    set({
+      projects: updatedProjs,
+      ...(get().currentProjectId === id ? { currentProjectId: null } : {})
+    });
+
     try {
       await apiFetch(`/api/projects/${id}`, { method: 'DELETE' });
-      useStore.getState().fetchProjects();
-      if (useStore.getState().currentProjectId === id) {
-        set({ currentProjectId: null });
-      }
-    } catch (e) {
-      console.error(e);
-      set({ apiError: errorMessage(e, 'Failed to delete the project.') });
+    } catch (_e) {}
+  },
+
+  exportWorkspaceData: () => exportAllClientData(),
+  importWorkspaceData: (jsonString) => {
+    const res = importAllClientData(jsonString);
+    if (res.success) {
+      const projects = loadClientProjects() || [];
+      const categories = loadClientCategories() || [];
+      const settings = loadClientSettings() || DEFAULT_SETTINGS;
+      set({ projects, categories, settings });
     }
+    return res;
   },
 
   hydrateCanvasState: (canvasState, options = {}) => set(
@@ -1059,9 +1298,20 @@ export const useStore = create(withHistory((set, get) => ({
   },
 
   applyPreset: (preset) => set((state) => {
-    const widthMm = preset.width_mm ?? preset.w ?? 48;
-    const heightMm = preset.height_mm ?? preset.h ?? 48;
-    const isRotated = preset.is_rotated ?? preset.rotated ?? false;
+    let widthMm = preset.width_mm ?? preset.w ?? 40;
+    let heightMm = preset.height_mm ?? preset.h ?? 12;
+    let isRotated = preset.is_rotated ?? preset.rotated ?? true;
+
+    // For pre-cut labels and rotated labels, landscape mode is standard:
+    // width is the longer horizontal dimension, height is the shorter printhead dimension.
+    if (isRotated || preset.media_type === 'pre-cut' || preset.name?.toLowerCase().includes('niimbot') || preset.name?.toLowerCase().includes('pre-cut')) {
+      const longDim = Math.max(widthMm, heightMm);
+      const shortDim = Math.min(widthMm, heightMm);
+      widthMm = longDim;
+      heightMm = shortDim;
+      isRotated = true;
+    }
+
     const splitMode = preset.split_mode ?? preset.splitMode ?? false;
     const nextCanvasWidth = state.getMmToPx(widthMm);
     const nextCanvasHeight = state.getMmToPx(heightMm);
@@ -1119,15 +1369,23 @@ export const useStore = create(withHistory((set, get) => ({
   },
 
   fetchSettings: async () => {
+    const clientSettings = loadClientSettings();
+    if (clientSettings) {
+      set({ settings: clientSettings, settingsLoaded: true });
+      return;
+    }
+
     try {
       const data = await apiJson('/api/settings', {}, {
         validate: isObjectPayload,
         validationMessage: 'Settings data is malformed.'
       });
+      saveClientSettings(data);
       set({ settings: data, settingsLoaded: true });
     } catch (e) {
-      console.error("Failed to fetch settings", e);
-      set({ settingsLoaded: true, apiError: errorMessage(e, 'Failed to load settings.') });
+      console.warn("Failed to fetch settings from server, using client defaults", e);
+      saveClientSettings(DEFAULT_SETTINGS);
+      set({ settings: DEFAULT_SETTINGS, settingsLoaded: true });
     }
   },
 
@@ -1189,20 +1447,14 @@ export const useStore = create(withHistory((set, get) => ({
   
   updateSettingsAPI: async (newSettings) => {
     const previous = get();
-    const rollback = {
-      settings: previous.settings,
-      currentDpi: previous.currentDpi,
-      canvasWidth: previous.canvasWidth,
-      canvasHeight: previous.canvasHeight,
-      items: previous.items,
-      pageLayouts: previous.pageLayouts
-    };
     const requestedDpi = Number(newSettings?.default_dpi);
     const currentDpi = previous.currentDpi || previous.settings?.default_dpi || 203;
     const shouldScaleForDpi = !previous.selectedPrinter
       && Number.isFinite(requestedDpi)
       && requestedDpi > 0
       && Math.abs(requestedDpi - currentDpi) > 0.001;
+
+    saveClientSettings(newSettings);
 
     if (shouldScaleForDpi) {
       const scale = requestedDpi / currentDpi;
@@ -1222,15 +1474,15 @@ export const useStore = create(withHistory((set, get) => ({
     } else {
       set({ settings: newSettings });
     }
+
     try {
       await apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSettings)
       });
-    } catch (e) {
-      console.error("Failed to save settings", e);
-      set({ ...rollback, apiError: errorMessage(e, 'Failed to save settings.') });
+    } catch (_e) {
+      // Saved in client storage
     }
   },
   
@@ -1321,9 +1573,17 @@ export const useStore = create(withHistory((set, get) => ({
       return;
     }
 
+    const localProfile = loadClientPrinterProfile(mac);
+
     try {
-      const res = await apiFetch(`/api/printers/${mac}/profile`);
-      let profile = (await res.json()) || {};
+      let profile = localProfile || {};
+      if (info?.transport !== 'web_bluetooth') {
+        try {
+          const res = await apiFetch(`/api/printers/${mac}/profile`);
+          const serverProfile = (await res.json()) || {};
+          profile = { ...serverProfile, ...profile };
+        } catch (_fetchErr) {}
+      }
       if (requestId !== printerProfileRequestId || get().selectedPrinter !== mac) return;
       const caps = info?.capabilities || {};
 
@@ -1442,23 +1702,118 @@ export const useStore = create(withHistory((set, get) => ({
         : null;
 
       if (requestId !== printerProfileRequestId || get().selectedPrinter !== mac) return;
-      set({
-        printerProfile: {
-          ...profile,
-          speed: normalizedSpeed,
-          energy: normalizedEnergy,
-          feed_lines: normalizedFeed,
-          paper_mode: normalizedPaperMode
-        }
-      });
+      const finalProfile = {
+        ...profile,
+        speed: normalizedSpeed,
+        energy: normalizedEnergy,
+        feed_lines: normalizedFeed,
+        paper_mode: normalizedPaperMode
+      };
+      saveClientPrinterProfile(mac, finalProfile);
+      set({ printerProfile: finalProfile });
+
+      // Automatically read RFID and select matching canvas preset for Niimbot printers
+      const v = (info?.vendor || '').toLowerCase();
+      const n = (info?.name || '').toLowerCase();
+      if (v.includes('niimbot') || n.includes('d11') || n.includes('b21') || n.includes('b1') || n.includes('d101')) {
+        get().readPrinterRfid(mac).catch((err) => console.warn('Background RFID read error:', err));
+      }
     } catch (e) {
       console.error("Failed to fetch or merge printer profile", e);
       if (requestId === printerProfileRequestId && get().selectedPrinter === mac) {
-        set({
-          printerProfile: { speed: 0, energy: 0, feed_lines: 50, paper_mode: null },
-          apiError: errorMessage(e, 'Failed to load the printer profile.')
-        });
+        const fallbackProfile = localProfile || { speed: 0, energy: 0, feed_lines: 50, paper_mode: null };
+        set({ printerProfile: fallbackProfile });
       }
+    }
+  },
+
+  readPrinterRfid: async (targetMac = null) => {
+    const state = get();
+    const mac = targetMac || state.selectedPrinter;
+    const info = state.selectedPrinterInfo;
+    if (!mac || !info) return null;
+
+    set({ isReadingRfid: true });
+    try {
+      let rfidData = null;
+
+      // 1. Web Bluetooth
+      if (info.transport === 'web_bluetooth' && state.webBluetoothSession?.client) {
+        rfidData = await getWebBluetoothRfidInfo(state.webBluetoothSession.client);
+      } else {
+        // 2. Local Bridge Helper
+        let bridge = state.bridgeClient;
+        if (!bridge || !bridge.isConnected) {
+          bridge = new LocalBridgeClient();
+          await bridge.connect();
+          set({ bridgeClient: bridge, bridgeConnected: true });
+        }
+        rfidData = await bridge.getRfidInfo(mac);
+      }
+
+      if (!rfidData || !rfidData.success || !rfidData.tag_present) {
+        set({ isReadingRfid: false });
+        return null;
+      }
+
+      set({ loadedPaperInfo: rfidData, isReadingRfid: false });
+
+      // Match against presets!
+      const currentPresets = get().labelPresets || [];
+      const { width_mm, height_mm } = rfidData;
+
+      // Check saved user barcode association first
+      const savedRfidMappings = loadClientRfidPresets();
+      const userSavedPresetId = savedRfidMappings[rfidData.barcode] || savedRfidMappings[rfidData.uuid];
+
+      let matchedPreset = null;
+      if (userSavedPresetId) {
+        matchedPreset = currentPresets.find(p => String(p.id) === String(userSavedPresetId) || p.name === userSavedPresetId);
+      }
+
+      if (!matchedPreset) {
+        const longDim = Math.max(width_mm, height_mm);
+        const shortDim = Math.min(width_mm, height_mm);
+
+        // 1. Prioritize Niimbot pre-cut presets
+        matchedPreset = currentPresets.find(p =>
+          p.name.toLowerCase().includes('niimbot') &&
+          Math.abs(Math.max(p.width_mm, p.height_mm) - longDim) <= 1 &&
+          Math.abs(Math.min(p.width_mm, p.height_mm) - shortDim) <= 1
+        );
+
+        // 2. Fallback to any preset matching dimensions
+        if (!matchedPreset) {
+          matchedPreset = currentPresets.find(p =>
+            Math.abs(Math.max(p.width_mm, p.height_mm) - longDim) <= 1 &&
+            Math.abs(Math.min(p.width_mm, p.height_mm) - shortDim) <= 1
+          );
+        }
+      }
+
+      const finalPreset = matchedPreset ? {
+        ...matchedPreset,
+        width_mm: Math.max(matchedPreset.width_mm, matchedPreset.height_mm),
+        height_mm: Math.min(matchedPreset.width_mm, matchedPreset.height_mm),
+        is_rotated: true,
+      } : {
+        name: `Pre-cut: Niimbot ${Math.max(width_mm, height_mm)}x${Math.min(width_mm, height_mm)}mm`,
+        width_mm: Math.max(width_mm, height_mm),
+        height_mm: Math.min(width_mm, height_mm),
+        is_rotated: true,
+        media_type: 'pre-cut',
+        split_mode: false,
+        border: 'none',
+      };
+
+      get().applyPreset(finalPreset);
+      console.log(`Auto-selected canvas preset '${finalPreset.name}' in landscape mode based on RFID tag.`);
+
+      return rfidData;
+    } catch (err) {
+      console.warn('Could not read RFID from printer:', err);
+      set({ isReadingRfid: false });
+      return null;
     }
   },
   

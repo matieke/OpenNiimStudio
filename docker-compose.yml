@@ -1,0 +1,17 @@
+services:
+  catlabel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catlabel
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - catlabel_data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+
+volumes:
+  catlabel_data:
+    name: catlabel_data

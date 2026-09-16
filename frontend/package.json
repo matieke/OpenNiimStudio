@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mmote/niimbluelib": "^0.46.0",
     "bwip-js": "^4.5.1",
     "dompurify": "^3.4.12",
     "html-to-image": "^1.11.11",

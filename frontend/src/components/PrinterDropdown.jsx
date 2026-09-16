@@ -17,7 +17,24 @@ export default function PrinterDropdown({ printers, manualPrinters, selectedPrin
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const allPrinters = [...printers, ...manualPrinters];
+  const isLikelyPrinter = (p) => {
+    if (!p) return false;
+    const name = (p.name || p.display_address || '').toLowerCase();
+    const vendor = (p.vendor || '').toLowerCase();
+    const excluded = [
+      'tv', 'television', 'samsung', 'lg webos', 'sony', 'bravia', 'tcl', 'hisense',
+      'fridge', 'refrigerator', 'headphone', 'headset', 'earbud', 'earphone', 'airpod',
+      'buds', 'speaker', 'soundbar', 'echo', 'alexa', 'watch', 'band', 'phone',
+      'desktop', 'laptop', 'pc', 'fedora', 'ubuntu', 'windows', 'macbook', 'iphone',
+      'ipad', 'galaxy', 'car', 'audio'
+    ];
+    if (excluded.some((bad) => name.includes(bad))) return false;
+    if (vendor === 'generic bluetooth') return false;
+    return true;
+  };
+
+  const validPrinters = printers.filter(isLikelyPrinter);
+  const allPrinters = [...validPrinters, ...manualPrinters];
   const selectedData = allPrinters.find((p) => p.address === selectedPrinter);
 
   return (
@@ -29,9 +46,9 @@ export default function PrinterDropdown({ printers, manualPrinters, selectedPrin
         <div className="flex items-center gap-2 truncate">
           {selectedData ? (
             <>
-              <div className={`w-2 h-2 rounded-full shrink-0 ${selectedData.transport === 'offline' ? 'bg-neutral-300 dark:bg-neutral-600' : 'bg-green-500'}`} />
+              <div className={`w-2 h-2 rounded-full shrink-0 ${selectedData.transport === 'web_bluetooth' ? 'bg-blue-500 animate-pulse' : selectedData.transport === 'offline' ? 'bg-neutral-300 dark:bg-neutral-600' : 'bg-green-500'}`} />
               <span className="truncate font-bold uppercase tracking-wider">
-                {selectedData.name || selectedData.display_address} ({selectedData.width_mm}mm)
+                {selectedData.name || selectedData.display_address} {selectedData.transport === 'web_bluetooth' ? '[Web BLE]' : `(${selectedData.width_mm || 48}mm)`}
               </span>
             </>
           ) : (
@@ -68,7 +85,7 @@ export default function PrinterDropdown({ printers, manualPrinters, selectedPrin
             {manualPrinters.length > 0 && (
               <div className={`py-1 ${printers.length > 0 ? 'border-t border-neutral-100 dark:border-neutral-800' : ''}`}>
                 <div className="px-3 py-1.5 text-[10px] uppercase font-bold tracking-widest text-neutral-400 dark:text-neutral-500 bg-neutral-50 dark:bg-neutral-950/50">
-                  Offline Profiles
+                  Devices & Profiles
                 </div>
                 {manualPrinters.map((p, index) => (
                   <div
@@ -79,8 +96,10 @@ export default function PrinterDropdown({ printers, manualPrinters, selectedPrin
                       onClick={() => { onSelect(p.address, p); setIsOpen(false); }}
                       className="flex-1 flex items-center gap-2 truncate py-1"
                     >
-                      <div className="w-2 h-2 rounded-full shrink-0 bg-neutral-300 dark:bg-neutral-600" />
-                      <span className="truncate font-bold uppercase tracking-wider">{p.name} ({p.width_mm}mm)</span>
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${p.transport === 'web_bluetooth' ? 'bg-blue-500' : 'bg-neutral-300 dark:bg-neutral-600'}`} />
+                      <span className="truncate font-bold uppercase tracking-wider">
+                        {p.name} {p.transport === 'web_bluetooth' ? '[Web BLE]' : `(${p.width_mm || 48}mm)`}
+                      </span>
                     </button>
                     <button
                       onClick={(e) => {

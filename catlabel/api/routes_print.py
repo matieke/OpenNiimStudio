@@ -156,14 +156,30 @@ def get_printer_model_info(name: str):
 @router.get("/api/printers/scan")
 async def scan_printers():
     global _scanned_devices_cache
-    devices, failures = await SppBackend.scan_with_failures(
-        include_classic=True,
-        include_ble=True,
-    )
-    _scanned_devices_cache = _recognized_scanned_devices(devices)
+    try:
+        devices, failures = await SppBackend.scan_with_failures(
+            include_classic=True,
+            include_ble=True,
+        )
+        _scanned_devices_cache = _recognized_scanned_devices(devices)
 
-    results = [_scan_result_payload(device) for device in _scanned_devices_cache]
-    return {"devices": results, "failures": [str(f.error) for f in failures]}
+        results = [_scan_result_payload(device) for device in _scanned_devices_cache]
+        return {
+            "devices": results,
+            "failures": [str(f.error) for f in failures],
+            "server_bluetooth_available": True,
+        }
+    except Exception as exc:
+        logger.warning(
+            "Server Bluetooth scan failed (expected in Docker or servers without Bluetooth hardware): %s",
+            exc,
+        )
+        _scanned_devices_cache = []
+        return {
+            "devices": [],
+            "failures": [f"Server Bluetooth scan unavailable: {exc}"],
+            "server_bluetooth_available": False,
+        }
 
 @router.get("/api/printers/{mac_address}/profile")
 def get_printer_profile(mac_address: str):

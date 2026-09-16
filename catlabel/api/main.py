@@ -18,6 +18,7 @@ from ..services.layout_engine import TEMPLATE_METADATA
 from .routes_print import router as print_router
 from .routes_project import router as project_router
 from .routes_ai import router as ai_router
+from .routes_helper import router as helper_router
 
 def seed_default_presets():
     from ..vendors import VendorRegistry
@@ -94,6 +95,7 @@ app.add_middleware(
 app.include_router(print_router)
 app.include_router(project_router)
 app.include_router(ai_router)
+app.include_router(helper_router)
 
 
 @app.get("/api/health", tags=["Diagnostics"])
