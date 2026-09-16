@@ -269,9 +269,9 @@ export default function Sidebar() {
                             : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
                         }`}>
                           {helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
-                            ? `v${helperInfo?.version || '0.3.0'} Binary`
+                            ? `v${helperInfo?.version || '0.3.2'} Binary`
                             : helperInfo?.buildType === 'python'
-                            ? `v${helperInfo?.version || '0.3.0'} Python`
+                            ? `v${helperInfo?.version || '0.3.2'} Python`
                             : 'Legacy Python'}
                         </span>
                       </div>
@@ -509,7 +509,7 @@ export default function Sidebar() {
             <div className="flex items-center justify-between">
               <span className="font-medium text-neutral-700 dark:text-neutral-300">OpenNiimStudio</span>
               <span className="font-mono text-[10px] bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded border border-neutral-200 dark:border-neutral-700">
-                v0.3.0
+                v0.3.2
               </span>
             </div>
             <div className="flex items-center justify-between text-[10px]">
@@ -524,9 +524,9 @@ export default function Sidebar() {
                 }`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
                   {helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
-                    ? `v${helperInfo?.version || '0.3.0'} (Binary)`
+                    ? `v${helperInfo?.version || '0.3.2'} (Binary)`
                     : helperInfo?.buildType === 'python'
-                    ? `v${helperInfo?.version || '0.3.0'} (Python)`
+                    ? `v${helperInfo?.version || '0.3.2'} (Python)`
                     : 'Legacy Python'}
                 </span>
               ) : (
@@ -537,8 +537,8 @@ export default function Sidebar() {
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-center" title={`OpenNiimStudio v0.3.0\nHelper: ${bridgeConnected ? (helperInfo?.buildType === 'binary' ? 'Binary' : 'Python') : 'Inactive'}`}>
-            <span>v0.3.0</span>
+          <div className="flex flex-col items-center gap-1 text-[9px] font-mono text-center" title={`OpenNiimStudio v0.3.2\nHelper: ${bridgeConnected ? (helperInfo?.buildType === 'binary' ? 'Binary' : 'Python') : 'Inactive'}`}>
+            <span>v0.3.2</span>
             <span className={`w-2 h-2 rounded-full ${bridgeConnected ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-700'}`} />
           </div>
         )}

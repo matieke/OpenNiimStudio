@@ -45,7 +45,7 @@ export async function checkBridgeStatus(timeoutMs = 1500) {
               resolve({
                 running: true,
                 helperInfo: {
-                  version: data.version || '0.3.0',
+                  version: data.version || '0.3.2',
                   buildType: data.build_type || (data.is_frozen ? 'binary' : 'python'),
                   isFrozen: Boolean(data.is_frozen || data.build_type === 'binary'),
                   platform: data.platform || ''
@@ -196,8 +196,8 @@ export class LocalBridgeClient {
     const action = data.action;
     if (action === 'ready' || action === 'info_result' || (action === 'pong' && data.version)) {
       this.helperInfo = {
-        version: data.version || '0.3.0',
-        buildType: data.build_type || (data.is_frozen ? 'binary' : (data.version === '0.3.0' ? 'python' : 'legacy_python')),
+        version: data.version || '0.3.2',
+        buildType: data.build_type || (data.is_frozen ? 'binary' : (data.version ? 'python' : 'legacy_python')),
         isFrozen: Boolean(data.is_frozen || data.build_type === 'binary'),
         platform: data.platform || ''
       };

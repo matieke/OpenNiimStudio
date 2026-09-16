@@ -30,7 +30,7 @@ describe('localBridgeClient', () => {
       setTimeout(() => {
         if (mockWs.onopen) mockWs.onopen();
         if (mockWs.onmessage) {
-          mockWs.onmessage({ data: JSON.stringify({ action: 'ready', version: '0.3.0', build_type: 'binary' }) });
+          mockWs.onmessage({ data: JSON.stringify({ action: 'ready', version: '0.3.2', build_type: 'binary' }) });
         }
       }, 10);
       return mockWs;
@@ -38,7 +38,7 @@ describe('localBridgeClient', () => {
 
     const status = await checkBridgeStatus(100);
     expect(status.running).toBe(true);
-    expect(status.helperInfo?.version).toBe('0.3.0');
+    expect(status.helperInfo?.version).toBe('0.3.2');
     expect(status.helperInfo?.buildType).toBe('binary');
   });
 

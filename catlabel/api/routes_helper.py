@@ -43,7 +43,7 @@ def download_helper_windows():
 @router.get("/api/helper/info")
 def get_helper_info():
     return {
-        "version": "1.0.0",
+        "version": "0.3.2",
         "port": 9123,
         "protocol": "openniim://",
         "legacy_protocol": "catlabel://",

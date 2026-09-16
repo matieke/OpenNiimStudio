@@ -52,7 +52,7 @@ describe('Sidebar component', () => {
   it('renders without throwing ReferenceError when helper is connected', async () => {
     useStore.setState({
       bridgeConnected: true,
-      helperInfo: { version: '0.3.0', buildType: 'binary', isFrozen: true }
+      helperInfo: { version: '0.3.2', buildType: 'binary', isFrozen: true }
     });
 
     div = document.createElement('div');
@@ -63,6 +63,6 @@ describe('Sidebar component', () => {
       root.render(<Sidebar />);
     });
 
-    expect(div.innerHTML).toContain('v0.3.0 (Binary)');
+    expect(div.innerHTML).toContain('v0.3.2 (Binary)');
   });
 });

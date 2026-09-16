@@ -1,6 +1,6 @@
 services:
   openniimstudio:
-    image: forgejo.syncedmedia.be/matieke/openniimstudio:0.3
+    image: forgejo.syncedmedia.be/matieke/openniimstudio:0.3.2
     build:
       context: .
       dockerfile: Dockerfile

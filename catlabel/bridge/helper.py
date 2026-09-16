@@ -30,7 +30,7 @@ PORT = 9123
 HOST = "127.0.0.1"
 AUTO_SHUTDOWN_GRACE_SEC = 15.0
 
-VERSION = "0.3.0"
+VERSION = "0.3.2"
 IS_FROZEN = getattr(sys, "frozen", False)
 BUILD_TYPE = "binary" if IS_FROZEN else "python"
 
