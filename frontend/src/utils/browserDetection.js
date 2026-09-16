@@ -104,6 +104,21 @@ export function getBluetoothCapability(
     };
   }
 
+  // Case 2b: Browser is Chromium-based (e.g. Linux), but Web Bluetooth flag is not enabled
+  if (browser.isChromium && isSecure && !hasBluetoothApi) {
+    const isLinux = /linux|x11/i.test(browser.userAgent);
+    return {
+      browser,
+      supportsWebBluetooth: false,
+      requiresHelper: true,
+      status: 'chromium_flag_needed',
+      title: `${browser.name} • Direct Bluetooth Needs Flag`,
+      message: isLinux
+        ? 'On Linux, Google Chrome requires enabling Web Bluetooth in chrome://flags. Visit chrome://flags/#enable-web-bluetooth-new-permissions-backend, enable it, and restart Chrome for direct printing. Alternatively, download the standalone Print Helper below.'
+        : `${browser.name} has Web Bluetooth disabled. Enable it in browser settings or use the standalone Print Helper below.`
+    };
+  }
+
   // Case 3: Mozilla Firefox
   if (browser.isFirefox) {
     return {

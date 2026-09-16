@@ -13,9 +13,10 @@ data/*.db
 frontend/node_modules
 frontend/dist
 niimblue
-bin
+/bin
+!catlabel/bridge/bin
+!catlabel/bridge/bin/**
 *.spec
-*.exe
 *.ps1
 run.bat
 run.sh

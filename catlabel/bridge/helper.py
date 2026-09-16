@@ -35,6 +35,9 @@ SHUTDOWN_HANDLE: asyncio.TimerHandle | None = None
 
 # --- Auto-install lightweight dependencies if needed ---
 def ensure_dependencies():
+    if getattr(sys, "frozen", False):
+        return
+
     packages = []
     try:
         import websockets
@@ -64,10 +67,17 @@ ensure_dependencies()
 def register_protocol_handler():
     """Register openniim:// and catlabel:// protocol handlers on the user's OS."""
     system = platform.system().lower()
-    script_path = Path(__file__).resolve()
-    python_exe = sys.executable
+    is_frozen = getattr(sys, "frozen", False)
+    if is_frozen:
+        exec_cmd_linux = f'"{sys.executable}" %u'
+        exec_cmd_windows = f'"{sys.executable}" "%1"'
+    else:
+        script_path = Path(__file__).resolve()
+        python_exe = sys.executable
+        exec_cmd_linux = f'{python_exe} "{script_path}" %u'
+        exec_cmd_windows = f'"{python_exe}" "{script_path}" "%1"'
 
-    logger.info("Registering openniim:// and catlabel:// URL protocols for %s...", system)
+    logger.info("Registering openniim:// and catlabel:// URL protocols for %s (frozen=%s)...", system, is_frozen)
 
     if system == "linux":
         app_dir = Path.home() / ".local" / "share" / "applications"
@@ -76,7 +86,7 @@ def register_protocol_handler():
         desktop_entry = f"""[Desktop Entry]
 Name=OpenNiimStudio Print Helper
 Comment=Local Bluetooth print relay for OpenNiimStudio
-Exec={python_exe} "{script_path}" %u
+Exec={exec_cmd_linux}
 Type=Application
 Terminal=false
 MimeType=x-scheme-handler/openniim;x-scheme-handler/catlabel;
@@ -120,7 +130,7 @@ Categories=Utility;
                 cmd_path = rf"{key_path}\shell\open\command"
                 with winreg.CreateKey(winreg.HKEY_CURRENT_USER, cmd_path) as cmd_key:
                     winreg.SetValueEx(
-                        cmd_key, "", 0, winreg.REG_SZ, f'"{python_exe}" "{script_path}" "%1"'
+                        cmd_key, "", 0, winreg.REG_SZ, exec_cmd_windows
                     )
             logger.info("Successfully registered Windows registry handlers for openniim:// and catlabel://")
         except Exception as e:

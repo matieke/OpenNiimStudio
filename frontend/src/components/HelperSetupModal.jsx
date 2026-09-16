@@ -11,6 +11,10 @@ export default function HelperSetupModal({ isOpen, onClose, onConnected }) {
   const browserCapability = useStore((state) => state.browserCapability);
   const connectWebBluetooth = useStore((state) => state.connectWebBluetooth);
 
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isWindows = /windows|win32/i.test(userAgent);
+  const isLinux = /linux|x11/i.test(userAgent) && !/android/i.test(userAgent);
+
   useEffect(() => {
     let interval = null;
     if (isOpen) {
@@ -120,43 +124,96 @@ export default function HelperSetupModal({ isOpen, onClose, onConnected }) {
             </div>
           )}
 
-          {/* Steps (Only shown for non-Web-Bluetooth browsers like Firefox/Safari) */}
+          {/* Steps (Only shown for non-Web-Bluetooth browsers or helper mode) */}
           {!webBluetoothSupported && (
             <div className="space-y-4">
-              {/* Step 1 */}
+              {/* Chrome on Linux notice */}
+              {browserCapability?.browser?.isChromium && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs rounded-none space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    Prefer zero-install printing directly from Chrome?
+                  </p>
+                  <p className="text-[11px] leading-relaxed">
+                    On Linux, Chrome leaves Web Bluetooth behind a flag by default. Open a new tab to <code className="bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono text-[10px]">chrome://flags/#enable-web-bluetooth-new-permissions-backend</code>, set it to <strong>Enabled</strong>, and restart Chrome to print natively with no helper needed!
+                  </p>
+                </div>
+              )}
+
+              {/* Step 1: Download Standalone Binary */}
               <div className="flex gap-3">
                 <div className="w-6 h-6 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center font-bold text-neutral-700 dark:text-neutral-300 shrink-0 text-xs">
                   1
                 </div>
                 <div className="flex-1 space-y-2">
-                  <p className="font-bold text-neutral-900 dark:text-white">Download the Print Helper</p>
-                  <a
-                    href="/api/helper/script"
-                    download="openniim-helper.py"
-                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
-                  >
-                    <Download size={14} /> Download openniim-helper.py
-                  </a>
+                  <p className="font-bold text-neutral-900 dark:text-white">Download Standalone Print Helper</p>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                    Self-contained executables with all dependencies included. <strong>No Python installation needed.</strong>
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {/* Windows Binary Button */}
+                    <a
+                      href="/api/helper/download/windows"
+                      download="openniim-helper-windows.exe"
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer ${
+                        isWindows ? 'bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400/50' : 'bg-neutral-800 hover:bg-neutral-700'
+                      }`}
+                      title="Standalone Windows executable (no Python required)"
+                    >
+                      <Download size={13} /> Windows (.exe)
+                    </a>
+
+                    {/* Linux Binary Button */}
+                    <a
+                      href="/api/helper/download/linux"
+                      download="openniim-helper-linux"
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer ${
+                        isLinux ? 'bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-400/50' : 'bg-neutral-800 hover:bg-neutral-700'
+                      }`}
+                      title="Standalone Linux 64-bit binary (no Python required)"
+                    >
+                      <Download size={13} /> Linux (Binary)
+                    </a>
+
+                    {/* Python Script fallback */}
+                    <a
+                      href="/api/helper/script"
+                      download="openniim-helper.py"
+                      className="inline-flex items-center gap-1 px-2.5 py-2 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs transition-colors cursor-pointer"
+                      title="Python source code for developers"
+                    >
+                      <Terminal size={12} /> Python (.py)
+                    </a>
+                  </div>
                 </div>
               </div>
 
-              {/* Step 2 */}
+              {/* Step 2: Run Helper */}
               <div className="flex gap-3">
                 <div className="w-6 h-6 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center font-bold text-neutral-700 dark:text-neutral-300 shrink-0 text-xs">
                   2
                 </div>
                 <div className="flex-1 space-y-1.5">
-                  <p className="font-bold text-neutral-900 dark:text-white">Run the helper on your computer</p>
-                  <div className="bg-neutral-950 text-neutral-200 p-2.5 rounded font-mono text-[11px] flex items-center justify-between border border-neutral-800">
-                    <code>python3 openniim-helper.py</code>
-                  </div>
-                  <p className="text-[10px] text-neutral-400">
-                    First run automatically registers the <code>openniim://</code> protocol so future launches work with one click.
-                  </p>
+                  <p className="font-bold text-neutral-900 dark:text-white">Run on your computer</p>
+                  {isWindows ? (
+                    <p className="text-[11px] text-neutral-600 dark:text-neutral-300">
+                      Double-click <code className="bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded font-mono">openniim-helper-windows.exe</code>. It registers the one-click launch protocol and starts in the background.
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="bg-neutral-950 text-neutral-200 p-2.5 font-mono text-[11px] border border-neutral-800">
+                        <code>chmod +x openniim-helper-linux && ./openniim-helper-linux</code>
+                      </div>
+                      <p className="text-[10px] text-neutral-400">
+                        First run registers the <code className="text-blue-400">openniim://</code> protocol so future browser launches work with 1 click.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Step 3 */}
+              {/* Step 3: Verify Connection */}
               <div className="flex gap-3">
                 <div className="w-6 h-6 rounded-full bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center font-bold text-neutral-700 dark:text-neutral-300 shrink-0 text-xs">
                   3
