@@ -48,4 +48,21 @@ describe('Sidebar component', () => {
 
     expect(div.innerHTML).toContain('Printers');
   });
+
+  it('renders without throwing ReferenceError when helper is connected', async () => {
+    useStore.setState({
+      bridgeConnected: true,
+      helperInfo: { version: '0.3.0', buildType: 'binary', isFrozen: true }
+    });
+
+    div = document.createElement('div');
+    document.body.appendChild(div);
+
+    root = createRoot(div);
+    await act(async () => {
+      root.render(<Sidebar />);
+    });
+
+    expect(div.innerHTML).toContain('v0.3.0 (Binary)');
+  });
 });

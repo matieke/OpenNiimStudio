@@ -40,6 +40,7 @@ export default function Sidebar() {
     browserCapability,
     bridgeConnected,
     bridgeChecking,
+    helperInfo,
     connectBridge,
     disconnectBridge,
     launchBridgeHelper,
