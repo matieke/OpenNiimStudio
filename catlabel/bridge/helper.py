@@ -488,23 +488,52 @@ async def print_niimbot_ble(mac: str, pil_images: List[any], progress_cb=None):
         if not client.is_connected:
             raise RuntimeError(f"Could not connect to printer at {mac}")
 
-        # Find write characteristic
+        # Known Niimbot write characteristics (standard combined UUID or ISSC transparent UART)
+        KNOWN_WRITE_UUIDS = [
+            "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f",
+            "49535343-8841-43f4-a8d4-ecbe34729bb3",
+            "0000fe01-0000-1000-8000-00805f9b34fb",
+        ]
+
         target_char = None
+        # 1. Search for known Niimbot vendor characteristics
         for service in client.services:
             for char in service.characteristics:
-                if NIIM_WRITE_UUID in char.uuid.lower() or "write" in char.properties or "write-without-response" in char.properties:
+                uuid_str = str(char.uuid).lower()
+                if any(known in uuid_str for known in KNOWN_WRITE_UUIDS):
                     target_char = char
                     break
             if target_char:
                 break
 
+        # 2. Fallback: search vendor services (skip 0x1800 Generic Access and 0x180A Device Info)
         if not target_char:
-            target_char = NIIM_WRITE_UUID
+            for service in client.services:
+                svc_uuid = str(service.uuid).lower()
+                if "1800" in svc_uuid or "1801" in svc_uuid or "180a" in svc_uuid:
+                    continue
+                for char in service.characteristics:
+                    props = char.properties
+                    if "write-without-response" in props or "write" in props:
+                        target_char = char
+                        break
+                if target_char:
+                    break
+
+        if not target_char:
+            target_char = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f"
+
+        logger.info("Using BLE characteristic for Niimbot print: %s", getattr(target_char, "uuid", target_char))
+
+        use_response = False
+        if hasattr(target_char, "properties"):
+            if "write-without-response" not in target_char.properties and "write" in target_char.properties:
+                use_response = True
 
         # Helper to send packet
         async def send(type_: int, data: bytes = b""):
             pkt = make_niimbot_packet(type_, data)
-            await client.write_gatt_char(target_char, pkt, response=False)
+            await client.write_gatt_char(target_char, pkt, response=use_response)
             await asyncio.sleep(0.015)
 
         logger.info("Sending print initialization packets...")
