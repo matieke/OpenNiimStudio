@@ -51,7 +51,7 @@ describe('webBluetoothClient', () => {
     const { getWebBluetoothRfidInfo } = await import('./webBluetoothClient');
     const mockClient = {
       isConnected: () => true,
-      abstraction: {
+      protocol: {
         rfidInfo: vi.fn().mockResolvedValue({
           tagPresent: true,
           barCode: '01222281',
@@ -79,7 +79,7 @@ describe('webBluetoothClient', () => {
     const { getWebBluetoothRfidInfo } = await import('./webBluetoothClient');
     const mockClient = {
       isConnected: () => true,
-      abstraction: {
+      protocol: {
         rfidInfo: vi.fn().mockResolvedValue({
           tagPresent: false,
         }),

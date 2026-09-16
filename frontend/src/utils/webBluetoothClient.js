@@ -8,6 +8,7 @@ import {
   NiimbotBluetoothClient,
   ImageEncoder,
   Utils,
+  PageColorType,
 } from '@mmote/niimbluelib';
 
 /**
@@ -173,7 +174,8 @@ export async function printViaWebBluetooth(client, images, options = {}) {
       // If canvas is landscape (width > height), orientation must be 'left' so cols matches the physical printhead width
       const isLandscape = canvas.width > canvas.height;
       const direction = (isRotated || isLandscape) ? 'left' : 'top';
-      const encoded = ImageEncoder.encodeCanvas(canvas, 'black', direction);
+      const pageColor = PageColorType?.SingleColor ?? 0;
+      const encoded = ImageEncoder.encodeCanvas(canvas, pageColor, direction);
 
       const printTask = client.protocol.newPrintTask(taskType, {
         totalPages: copies,
@@ -267,7 +269,25 @@ export async function getWebBluetoothRfidInfo(client) {
   }
 
   try {
-    const info = await client.abstraction.rfidInfo();
+    let info = null;
+    if (client.protocol) {
+      try {
+        if (typeof client.protocol.rfidInfo === 'function') {
+          info = await client.protocol.rfidInfo();
+        }
+      } catch (_e1) {
+        try {
+          if (typeof client.protocol.rfidInfo2 === 'function') {
+            info = await client.protocol.rfidInfo2();
+          }
+        } catch (_e2) {
+          console.warn('rfidInfo and rfidInfo2 both failed on protocol:', _e1, _e2);
+        }
+      }
+    } else if (client.abstraction && typeof client.abstraction.rfidInfo === 'function') {
+      info = await client.abstraction.rfidInfo();
+    }
+
     if (!info || !info.tagPresent) {
       return {
         success: true,
