@@ -1,9 +1,8 @@
+# CatLabel - Server Docker Compose
+# Deploy directly without git or building from source
 services:
   catlabel:
     image: forgejo.syncedmedia.be/matieke/openniimstudio:0.2
-    build:
-      context: .
-      dockerfile: Dockerfile
     container_name: catlabel
     restart: unless-stopped
     ports:
