@@ -609,6 +609,31 @@ export const useStore = create(withHistory((set, get) => ({
     }
     return client.scanPrinters();
   },
+  fetchBridgeLogs: async () => {
+    const client = get().bridgeClient;
+    if (!client || !client.isConnected) {
+      throw new Error('Helper bridge not connected');
+    }
+    return client.getLogs();
+  },
+  clearBridgeLogs: async () => {
+    const client = get().bridgeClient;
+    if (!client || !client.isConnected) {
+      throw new Error('Helper bridge not connected');
+    }
+    return client.clearLogs();
+  },
+  updateBridgeHelper: async () => {
+    const client = get().bridgeClient;
+    if (!client || !client.isConnected) {
+      throw new Error('Helper bridge not connected');
+    }
+    const res = await client.triggerSelfUpdate(window.location.origin);
+    setTimeout(() => {
+      get().connectBridge();
+    }, 2000);
+    return res;
+  },
   batchRecords: [{}],
   printCopies: 1,
   theme: 'auto',

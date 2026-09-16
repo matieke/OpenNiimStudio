@@ -146,6 +146,13 @@ export class LocalBridgeClient {
         this.ws.onopen = () => {
           this.isConnected = true;
           this.startHeartbeat();
+          try {
+            this.ws.send(JSON.stringify({
+              action: 'client_hello',
+              server_version: '0.3.2',
+              server_url: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000'
+            }));
+          } catch (_e) {}
           resolve(true);
         };
 
@@ -194,15 +201,34 @@ export class LocalBridgeClient {
 
   handleMessage(data) {
     const action = data.action;
-    if (action === 'ready' || action === 'info_result' || (action === 'pong' && data.version)) {
+    if (action === 'ready' || action === 'info_result' || action === 'hello_ack' || (action === 'pong' && data.version)) {
+      const ver = data.version || (this.helperInfo?.version || '0.3.2');
       this.helperInfo = {
-        version: data.version || '0.3.2',
-        buildType: data.build_type || (data.is_frozen ? 'binary' : (data.version ? 'python' : 'legacy_python')),
+        version: ver,
+        buildType: data.build_type || (data.is_frozen ? 'binary' : (ver ? 'python' : 'legacy_python')),
         isFrozen: Boolean(data.is_frozen || data.build_type === 'binary'),
-        platform: data.platform || ''
+        platform: data.platform || (this.helperInfo?.platform || ''),
+        updateAvailable: Boolean(data.update_available || (ver && ver < '0.3.2')),
+        logFile: data.log_file || (this.helperInfo?.logFile || '')
       };
       if (this.onInfo) {
         this.onInfo(this.helperInfo);
+      }
+    } else if (action === 'logs_result' && this.callbacks.has('logs')) {
+      const { resolve } = this.callbacks.get('logs');
+      this.callbacks.delete('logs');
+      resolve({ logs: data.logs || [], logFile: data.log_file || '' });
+    } else if (action === 'logs_cleared' && this.callbacks.has('clear_logs')) {
+      const { resolve } = this.callbacks.get('clear_logs');
+      this.callbacks.delete('clear_logs');
+      resolve(true);
+    } else if (action === 'self_update_result' && this.callbacks.has('self_update')) {
+      const { resolve, reject } = this.callbacks.get('self_update');
+      this.callbacks.delete('self_update');
+      if (data.success) {
+        resolve(data.message || 'Update completed');
+      } else {
+        reject(new Error(data.message || 'Self-update failed'));
       }
     } else if (action === 'scan_result' && this.callbacks.has('scan')) {
       const { resolve } = this.callbacks.get('scan');
@@ -359,6 +385,58 @@ export class LocalBridgeClient {
         action: 'print',
         ...jobPayload,
       }));
+    });
+  }
+
+  async getLogs(timeoutMs = 5000) {
+    if (!this.isConnected || !this.ws) {
+      throw new Error('Local helper is not connected');
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.callbacks.delete('logs');
+        reject(new Error('Log retrieval timed out'));
+      }, timeoutMs);
+      this.callbacks.set('logs', {
+        resolve: (val) => { clearTimeout(timer); resolve(val); },
+        reject: (err) => { clearTimeout(timer); reject(err); }
+      });
+      this.ws.send(JSON.stringify({ action: 'get_logs' }));
+    });
+  }
+
+  async clearLogs(timeoutMs = 5000) {
+    if (!this.isConnected || !this.ws) {
+      throw new Error('Local helper is not connected');
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.callbacks.delete('clear_logs');
+        reject(new Error('Clearing logs timed out'));
+      }, timeoutMs);
+      this.callbacks.set('clear_logs', {
+        resolve: (val) => { clearTimeout(timer); resolve(val); },
+        reject: (err) => { clearTimeout(timer); reject(err); }
+      });
+      this.ws.send(JSON.stringify({ action: 'clear_logs' }));
+    });
+  }
+
+  async triggerSelfUpdate(serverUrl, timeoutMs = 30000) {
+    if (!this.isConnected || !this.ws) {
+      throw new Error('Local helper is not connected');
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.callbacks.delete('self_update');
+        reject(new Error('Self-update timed out on local helper'));
+      }, timeoutMs);
+      this.callbacks.set('self_update', {
+        resolve: (val) => { clearTimeout(timer); resolve(val); },
+        reject: (err) => { clearTimeout(timer); reject(err); }
+      });
+      const url = serverUrl || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000');
+      this.ws.send(JSON.stringify({ action: 'self_update', server_url: url }));
     });
   }
 

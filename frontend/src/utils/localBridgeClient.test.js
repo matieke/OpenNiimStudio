@@ -84,4 +84,50 @@ describe('localBridgeClient', () => {
     client.disconnect();
     expect(client.isConnected).toBe(false);
   });
+
+  test('LocalBridgeClient getLogs and clearLogs interaction', async () => {
+    let messageListener = null;
+    let sentData = null;
+
+    vi.stubGlobal('WebSocket', vi.fn().mockImplementation(() => {
+      const mockWs = {
+        readyState: 1,
+        send: vi.fn((msg) => { sentData = JSON.parse(msg); }),
+        close: vi.fn(),
+      };
+      setTimeout(() => {
+        if (mockWs.onopen) mockWs.onopen();
+      }, 10);
+      Object.defineProperty(mockWs, 'onmessage', {
+        set(fn) { messageListener = fn; },
+        get() { return messageListener; }
+      });
+      return mockWs;
+    }));
+
+    const client = new LocalBridgeClient();
+    await client.connect();
+
+    const logsPromise = client.getLogs();
+    expect(sentData.action).toBe('get_logs');
+    messageListener({ data: JSON.stringify({ action: 'logs_result', logs: ['Line 1', 'Line 2'], log_file: '/tmp/helper.log' }) });
+    const logRes = await logsPromise;
+    expect(logRes.logs).toHaveLength(2);
+    expect(logRes.logFile).toBe('/tmp/helper.log');
+
+    const clearPromise = client.clearLogs();
+    expect(sentData.action).toBe('clear_logs');
+    messageListener({ data: JSON.stringify({ action: 'logs_cleared' }) });
+    const clearRes = await clearPromise;
+    expect(clearRes).toBe(true);
+
+    const updatePromise = client.triggerSelfUpdate('http://test-server:8000');
+    expect(sentData.action).toBe('self_update');
+    expect(sentData.server_url).toBe('http://test-server:8000');
+    messageListener({ data: JSON.stringify({ action: 'self_update_result', success: true, message: 'Updated' }) });
+    const updateRes = await updatePromise;
+    expect(updateRes).toBe('Updated');
+
+    client.disconnect();
+  });
 });

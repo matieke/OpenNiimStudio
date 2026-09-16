@@ -11,20 +11,23 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import collections
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import platform
 import re
 import struct
 import subprocess
 import sys
+import tempfile
+import threading
+import urllib.request
+import webbrowser
 from io import BytesIO
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("openniim-helper")
 
 PORT = 9123
 HOST = "127.0.0.1"
@@ -34,8 +37,139 @@ VERSION = "0.3.2"
 IS_FROZEN = getattr(sys, "frozen", False)
 BUILD_TYPE = "binary" if IS_FROZEN else "python"
 
+# --- Logging & In-Memory Ring Buffer ---
+LOG_BUFFER: collections.deque[str] = collections.deque(maxlen=500)
+
+class BufferLogHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            LOG_BUFFER.append(msg)
+        except Exception:
+            pass
+
+def get_log_file_path() -> Path:
+    system = platform.system().lower()
+    if system == "windows":
+        base = Path(os.environ.get("APPDATA", Path.home())) / "OpenNiimStudio"
+    elif system == "darwin":
+        base = Path.home() / "Library" / "Logs" / "OpenNiimStudio"
+    else:
+        base = Path.home() / ".config" / "openniim"
+    try:
+        base.mkdir(parents=True, exist_ok=True)
+        return base / "helper.log"
+    except Exception:
+        return Path(tempfile.gettempdir()) / "openniim-helper.log"
+
+LOG_FILE_PATH = get_log_file_path()
+
+logger = logging.getLogger("openniim-helper")
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+
+if not logger.handlers:
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    try:
+        file_handler = RotatingFileHandler(str(LOG_FILE_PATH), maxBytes=2 * 1024 * 1024, backupCount=2, encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except Exception as e:
+        print(f"Warning: Could not configure file logger at {LOG_FILE_PATH}: {e}", file=sys.stderr)
+
+    buf_handler = BufferLogHandler()
+    buf_handler.setFormatter(formatter)
+    logger.addHandler(buf_handler)
+
 CONNECTED_CLIENTS: Set[any] = set()
 SHUTDOWN_HANDLE: asyncio.TimerHandle | None = None
+SCAN_LOCK: asyncio.Lock | None = None
+TRAY_ICON = None
+LATEST_SERVER_VERSION: Optional[str] = None
+LATEST_SERVER_URL: str = "http://localhost:8000"
+
+
+def open_log_file():
+    """Opens helper.log in the system's default text viewer."""
+    try:
+        system = platform.system().lower()
+        if system == "windows":
+            os.startfile(str(LOG_FILE_PATH))
+        elif system == "darwin":
+            subprocess.Popen(["open", str(LOG_FILE_PATH)])
+        else:
+            subprocess.Popen(["xdg-open", str(LOG_FILE_PATH)])
+    except Exception as e:
+        logger.error("Failed to open log file %s: %s", LOG_FILE_PATH, e)
+
+
+def check_server_update(server_url: str) -> Tuple[bool, Optional[str]]:
+    """Queries /api/helper/info on the server to check for updates."""
+    try:
+        url = f"{server_url.rstrip('/')}/api/helper/info"
+        req = urllib.request.Request(url, headers={"User-Agent": f"OpenNiimHelper/{VERSION}"})
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            srv_ver = data.get("version")
+            if srv_ver and srv_ver > VERSION:
+                return True, srv_ver
+    except Exception as e:
+        logger.debug("Could not check update against %s: %s", server_url, e)
+    return False, None
+
+
+def perform_self_update(server_url: str) -> Tuple[bool, str]:
+    """Downloads updated binary from server and swaps/restarts."""
+    if not IS_FROZEN:
+        return False, "Self-update is only available for standalone compiled binaries."
+
+    system = platform.system().lower()
+    endpoint = "/api/helper/download/windows" if system == "windows" else "/api/helper/download/linux"
+    download_url = f"{server_url.rstrip('/')}{endpoint}"
+    current_exe = Path(sys.executable).resolve()
+    temp_target = current_exe.with_suffix(current_exe.suffix + ".download")
+
+    logger.info("Downloading helper update from %s -> %s...", download_url, temp_target)
+    try:
+        req = urllib.request.Request(download_url, headers={"User-Agent": f"OpenNiimHelper/{VERSION}"})
+        with urllib.request.urlopen(req, timeout=30.0) as resp:
+            content = resp.read()
+            if len(content) < 500_000:
+                return False, f"Downloaded file is suspiciously small ({len(content)} bytes)."
+            with open(temp_target, "wb") as f:
+                f.write(content)
+
+        if system != "windows":
+            temp_target.chmod(0o755)
+            temp_target.replace(current_exe)
+            current_exe.chmod(0o755)
+            logger.info("Binary replaced with updated version. Relaunching %s...", current_exe)
+            subprocess.Popen([str(current_exe), "openniim://start"])
+            os._exit(0)
+        else:
+            updater_bat = current_exe.parent / "_updater.bat"
+            bat_content = f"""@echo off
+timeout /t 1 /nobreak > NUL
+move /y "{temp_target}" "{current_exe}"
+start "" "{current_exe}" openniim://start
+del "%~f0"
+"""
+            updater_bat.write_text(bat_content, encoding="utf-8")
+            logger.info("Windows updater script created. Launching and exiting...")
+            flags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+            subprocess.Popen(["cmd.exe", "/c", str(updater_bat)], creationflags=flags)
+            os._exit(0)
+    except Exception as e:
+        logger.exception("Self-update failed: %s", e)
+        if temp_target.exists():
+            try: temp_target.unlink()
+            except Exception: pass
+        return False, str(e)
+    return True, "Update initiated"
+
 
 # --- Auto-install lightweight dependencies if needed ---
 def ensure_dependencies():
@@ -55,6 +189,10 @@ def ensure_dependencies():
         import PIL
     except ImportError:
         packages.append("pillow")
+    try:
+        import pystray
+    except ImportError:
+        packages.append("pystray")
 
     if packages:
         logger.info("Installing required companion dependencies (%s)...", ", ".join(packages))
@@ -162,7 +300,125 @@ def cancel_auto_shutdown():
 def _do_auto_shutdown():
     if not CONNECTED_CLIENTS:
         logger.info("Auto-shutdown timer elapsed with 0 clients. Closing helper cleanly.")
+        if TRAY_ICON is not None:
+            try:
+                TRAY_ICON.stop()
+            except Exception:
+                pass
         os._exit(0)
+
+
+# --- Desktop System Tray Integration ---
+def update_tray_state():
+    """Updates tray icon tooltip and menu to reflect live client count."""
+    global TRAY_ICON
+    if TRAY_ICON is not None:
+        try:
+            TRAY_ICON.title = f"OpenNiim Helper v{VERSION} ({len(CONNECTED_CLIENTS)} connected)"
+            TRAY_ICON.update_menu()
+        except Exception:
+            pass
+
+
+def create_tray_image():
+    """Returns a 64x64 RGBA PIL Image for the system tray."""
+    from PIL import Image, ImageDraw
+    candidates = []
+    if getattr(sys, "frozen", False):
+        base_dir = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+        candidates.extend([base_dir / "icon.ico", base_dir / "logo.webp"])
+    candidates.extend([
+        Path(__file__).resolve().parent.parent.parent / "logo.webp",
+        Path(__file__).resolve().parent.parent.parent / "icon.ico",
+        Path("logo.webp"),
+        Path("icon.ico"),
+    ])
+    for p in candidates:
+        if p.exists():
+            try:
+                img = Image.open(p)
+                return img.resize((64, 64)).convert("RGBA")
+            except Exception:
+                pass
+
+    # Draw crisp fallback printer icon
+    img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([(4, 4), (60, 60)], radius=12, fill=(16, 185, 129))
+    d.rectangle([(16, 12), (48, 24)], fill=(255, 255, 255))
+    d.rounded_rectangle([(12, 22), (52, 48)], radius=4, fill=(240, 253, 250))
+    d.line([(18, 32), (46, 32)], fill=(16, 185, 129), width=3)
+    d.ellipse([(44, 40), (48, 44)], fill=(16, 185, 129))
+    return img
+
+
+def setup_system_tray():
+    """Initializes and runs the pystray icon loop."""
+    global TRAY_ICON
+    try:
+        import pystray
+        from pystray import MenuItem as item, Menu as menu
+
+        def on_exit(icon, _item):
+            logger.info("Exit requested from system tray.")
+            try:
+                icon.stop()
+            except Exception:
+                pass
+            os._exit(0)
+
+        def on_open_web(icon, _item):
+            webbrowser.open(LATEST_SERVER_URL)
+
+        def on_view_logs(icon, _item):
+            open_log_file()
+
+        def on_check_updates(icon, _item):
+            has_update, new_ver = check_server_update(LATEST_SERVER_URL)
+            if has_update:
+                try:
+                    icon.notify(f"Update Available: v{new_ver} (Current: v{VERSION})", "OpenNiim Helper")
+                except Exception:
+                    pass
+                perform_self_update(LATEST_SERVER_URL)
+            else:
+                try:
+                    icon.notify(f"OpenNiim Helper is up to date (v{VERSION})", "OpenNiim Helper")
+                except Exception:
+                    pass
+
+        def get_status_text(_item):
+            return f"OpenNiim Helper v{VERSION} ({BUILD_TYPE.capitalize()})"
+
+        def get_tabs_text(_item):
+            return f"Connected tabs: {len(CONNECTED_CLIENTS)}"
+
+        def get_update_text(_item):
+            if LATEST_SERVER_VERSION and LATEST_SERVER_VERSION > VERSION:
+                return f"⚠️ Update Available: v{LATEST_SERVER_VERSION}"
+            return "Check for Updates"
+
+        tray_menu = menu(
+            item(get_status_text, None, enabled=False),
+            item(get_tabs_text, None, enabled=False),
+            item("---", None, enabled=False),
+            item("View Logs", on_view_logs),
+            item(get_update_text, on_check_updates),
+            item("Open OpenNiimStudio", on_open_web),
+            item("---", None, enabled=False),
+            item("Quit Helper", on_exit)
+        )
+
+        TRAY_ICON = pystray.Icon("OpenNiimHelper", create_tray_image(), f"OpenNiim Helper v{VERSION}", tray_menu)
+        TRAY_ICON.run()
+    except Exception as e:
+        logger.warning("System tray unavailable in this environment: %s. Continuing in headless mode.", e)
+
+
+def start_system_tray_thread():
+    t = threading.Thread(target=setup_system_tray, daemon=True, name="SystemTrayThread")
+    t.start()
+    return t
 
 
 # --- Non-Printer Rejection & Printer Identification ---
@@ -196,8 +452,9 @@ def classify_device(name: str, mac: str) -> Optional[dict]:
     if not any(kw in name_lower for kw in PRINTER_KEYWORDS):
         return None
 
-    # Niimbot models
+    # Niimbot models (order matters: specific prefixes before short ones)
     niim_models = {
+        "d110_m": ("d110_m", 203, 15),
         "d110": ("d110", 203, 15),
         "d11": ("d11", 203, 15),
         "d101": ("d101", 203, 25),
@@ -249,56 +506,81 @@ def classify_device(name: str, mac: str) -> Optional[dict]:
     }
 
 
+def get_scan_lock() -> asyncio.Lock:
+    global SCAN_LOCK
+    if SCAN_LOCK is None:
+        SCAN_LOCK = asyncio.Lock()
+    return SCAN_LOCK
+
+
 # --- Bluetooth Scanning ---
 async def scan_devices() -> List[dict]:
-    found_devices: Dict[str, dict] = {}
+    lock = get_scan_lock()
+    async with lock:
+        found_devices: Dict[str, dict] = {}
+        loop = asyncio.get_running_loop()
 
-    # Method 1: Linux bluetoothctl (reliable BlueZ integration)
-    if platform.system().lower() == "linux":
+        # Method 1: Linux bluetoothctl (reliable BlueZ integration via worker thread)
+        if platform.system().lower() == "linux":
+            try:
+                logger.info("Initiating local Bluetooth scan via bluetoothctl...")
+                def _run_btctl():
+                    subprocess.run(
+                        ["bluetoothctl", "--timeout", "3", "scan", "on"],
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        check=False
+                    )
+                    return subprocess.run(
+                        ["bluetoothctl", "devices"],
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE,
+                        text=True,
+                        check=False
+                    )
+
+                proc = await loop.run_in_executor(None, _run_btctl)
+                for line in proc.stdout.splitlines():
+                    m = re.match(r"Device\s+([0-9A-Fa-f:]+)\s+(.+)", line)
+                    if m:
+                        mac, dev_name = m.group(1), m.group(2).strip()
+                        classified = classify_device(dev_name, mac)
+                        if classified:
+                            logger.info("bluetoothctl discovered printer: %s [%s] -> %s", dev_name, mac, classified["model_id"])
+                            found_devices[mac.upper()] = classified
+                        else:
+                            logger.debug("bluetoothctl non-printer device: %s [%s]", dev_name, mac)
+            except Exception as e:
+                logger.warning("bluetoothctl scan error: %s", e)
+
+        # Method 2: Bleak BLE scanner (cross-platform, wrapped in timeout)
         try:
-            logger.info("Initiating local Bluetooth scan via bluetoothctl...")
-            subprocess.run(
-                ["bluetoothctl", "--timeout", "3", "scan", "on"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=False
-            )
-            proc = subprocess.run(
-                ["bluetoothctl", "devices"],
-                stdout=subprocess.PIPE,
-                text=True,
-                check=False
-            )
-            for line in proc.stdout.splitlines():
-                m = re.match(r"Device\s+([0-9A-Fa-f:]+)\s+(.+)", line)
-                if m:
-                    mac, dev_name = m.group(1), m.group(2)
-                    classified = classify_device(dev_name, mac)
-                    if classified:
-                        found_devices[mac.upper()] = classified
+            import bleak
+            logger.info("Scanning for BLE devices via bleak...")
+            try:
+                ble_devices = await asyncio.wait_for(bleak.BleakScanner.discover(timeout=3.0), timeout=5.0)
+                for d in ble_devices:
+                    name = (d.name or "").strip()
+                    mac = d.address.upper()
+                    if name:
+                        classified = classify_device(name, mac)
+                        if classified:
+                            logger.info("Bleak discovered printer: %s [%s] -> %s", name, mac, classified["model_id"])
+                            found_devices[mac] = classified
+                        else:
+                            logger.debug("Bleak non-printer device: %s [%s]", name, mac)
+            except asyncio.TimeoutError:
+                logger.warning("Bleak scan timed out after 5.0s, proceeding with found devices.")
         except Exception as e:
-            logger.warning("bluetoothctl scan error: %s", e)
+            logger.warning("Bleak scan error: %s", e)
 
-    # Method 2: Bleak BLE scanner (cross-platform)
-    try:
-        import bleak
-        logger.info("Scanning for BLE devices via bleak...")
-        ble_devices = await bleak.BleakScanner.discover(timeout=3.0)
-        for d in ble_devices:
-            if d.name:
-                mac = d.address.upper()
-                classified = classify_device(d.name, mac)
-                if classified:
-                    found_devices[mac] = classified
-    except Exception as e:
-        logger.warning("Bleak scan error: %s", e)
-
-    ordered = sorted(
-        found_devices.values(),
-        key=lambda d: 0 if d["vendor"] in ("Niimbot", "Phomemo") else 1
-    )
-    logger.info("Local scan finished. Found %d valid printers.", len(ordered))
-    return ordered
+        ordered = sorted(
+            found_devices.values(),
+            key=lambda d: 0 if d["vendor"] in ("Niimbot", "Phomemo") else 1
+        )
+        logger.info("Local scan finished. Found %d valid printers.", len(ordered))
+        return ordered
 
 
 # --- Niimbot RFID Decoding ---
@@ -709,12 +991,14 @@ async def print_niimbot_ble(mac: str, pil_images: List[any], progress_cb=None):
 
 # --- WebSocket Handler ---
 async def websocket_handler(websocket):
+    global LATEST_SERVER_VERSION, LATEST_SERVER_URL
     CONNECTED_CLIENTS.add(websocket)
     cancel_auto_shutdown()
     logger.info("Browser tab connected via WebSocket (active tabs: %d)", len(CONNECTED_CLIENTS))
+    update_tray_state()
 
     try:
-        # Send greeting
+        # Send greeting with version, platform, and log file location
         await websocket.send(json.dumps({
             "action": "ready",
             "version": VERSION,
@@ -722,6 +1006,7 @@ async def websocket_handler(websocket):
             "is_frozen": IS_FROZEN,
             "platform": platform.system(),
             "status": "connected",
+            "log_file": str(LOG_FILE_PATH),
         }))
 
         async for raw_msg in websocket:
@@ -731,7 +1016,66 @@ async def websocket_handler(websocket):
                 continue
 
             action = data.get("action")
-            if action == "ping":
+            if action == "client_hello":
+                srv_ver = data.get("server_version")
+                srv_url = data.get("server_url")
+                if srv_url:
+                    LATEST_SERVER_URL = srv_url
+                if srv_ver:
+                    LATEST_SERVER_VERSION = srv_ver
+                update_avail = bool(srv_ver and srv_ver > VERSION)
+                update_tray_state()
+                await websocket.send(json.dumps({
+                    "action": "hello_ack",
+                    "version": VERSION,
+                    "build_type": BUILD_TYPE,
+                    "is_frozen": IS_FROZEN,
+                    "update_available": update_avail,
+                    "latest_version": srv_ver,
+                    "log_file": str(LOG_FILE_PATH),
+                }))
+
+            elif action == "get_logs":
+                await websocket.send(json.dumps({
+                    "action": "logs_result",
+                    "logs": list(LOG_BUFFER),
+                    "log_file": str(LOG_FILE_PATH),
+                }))
+
+            elif action == "clear_logs":
+                LOG_BUFFER.clear()
+                await websocket.send(json.dumps({
+                    "action": "logs_cleared",
+                }))
+
+            elif action == "check_update":
+                srv_url = data.get("server_url", LATEST_SERVER_URL)
+                has_up, new_v = check_server_update(srv_url)
+                if has_up and new_v:
+                    LATEST_SERVER_VERSION = new_v
+                    update_tray_state()
+                await websocket.send(json.dumps({
+                    "action": "update_status",
+                    "update_available": has_up,
+                    "latest_version": new_v,
+                    "current_version": VERSION,
+                }))
+
+            elif action == "self_update":
+                srv_url = data.get("server_url", LATEST_SERVER_URL)
+                logger.info("Self-update requested from browser tab via server %s", srv_url)
+                await websocket.send(json.dumps({
+                    "action": "self_update_progress",
+                    "status": "downloading",
+                }))
+                ok, msg = perform_self_update(srv_url)
+                await websocket.send(json.dumps({
+                    "action": "self_update_result",
+                    "success": ok,
+                    "message": msg,
+                }))
+
+            elif action == "ping":
                 await websocket.send(json.dumps({
                     "action": "pong",
                     "version": VERSION,
@@ -747,6 +1091,7 @@ async def websocket_handler(websocket):
                     "build_type": BUILD_TYPE,
                     "is_frozen": IS_FROZEN,
                     "platform": platform.system(),
+                    "log_file": str(LOG_FILE_PATH),
                 }))
 
             elif action == "scan":
@@ -838,6 +1183,7 @@ async def websocket_handler(websocket):
     finally:
         CONNECTED_CLIENTS.discard(websocket)
         logger.info("Browser tab disconnected (active tabs: %d)", len(CONNECTED_CLIENTS))
+        update_tray_state()
         if not CONNECTED_CLIENTS:
             schedule_auto_shutdown()
 
@@ -848,10 +1194,15 @@ async def main():
     # Register protocol handler on startup
     register_protocol_handler()
 
+    # Launch desktop system tray icon thread (cross-platform, graceful fallback)
+    start_system_tray_thread()
+
     # Start WebSocket server
     async with websockets.serve(websocket_handler, HOST, PORT):
         logger.info("==================================================")
-        logger.info(" CatLabel Local Print Helper running on ws://%s:%d", HOST, PORT)
+        logger.info(" OpenNiimStudio Local Print Helper v%s", VERSION)
+        logger.info(" Running on ws://%s:%d (%s mode)", HOST, PORT, BUILD_TYPE)
+        logger.info(" Log file: %s", LOG_FILE_PATH)
         logger.info(" Auto-shutdown: Exits %ds after all tabs close.", int(AUTO_SHUTDOWN_GRACE_SEC))
         logger.info("==================================================")
 

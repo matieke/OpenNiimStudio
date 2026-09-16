@@ -274,8 +274,26 @@ export default function Sidebar() {
                             ? `v${helperInfo?.version || '0.3.2'} Python`
                             : 'Legacy Python'}
                         </span>
+                        {(helperInfo?.updateAvailable || (helperInfo?.version && helperInfo.version < '0.3.2')) && (
+                          <button
+                            onClick={() => setShowHelperSetupModal(true)}
+                            className="text-[9px] bg-amber-500 hover:bg-amber-600 text-white px-1.5 py-0.2 rounded font-bold uppercase shrink-0 cursor-pointer animate-pulse"
+                            title="Helper update available. Click to update."
+                          >
+                            Update
+                          </button>
+                        )}
                       </div>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400">Local Bluetooth Bridge</span>
+                      <div className="flex items-center gap-2 text-[10px] text-emerald-600 dark:text-emerald-400">
+                        <span>Local Bluetooth Bridge</span>
+                        <span>•</span>
+                        <button
+                          onClick={() => setShowHelperSetupModal(true)}
+                          className="hover:underline font-semibold cursor-pointer text-blue-600 dark:text-blue-400"
+                        >
+                          Logs & Status
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <button
@@ -515,24 +533,42 @@ export default function Sidebar() {
             <div className="flex items-center justify-between text-[10px]">
               <span className="text-neutral-500">Print Helper</span>
               {bridgeConnected ? (
-                <span className={`inline-flex items-center gap-1 font-mono text-[9px] px-1.5 py-0.5 rounded font-medium ${
-                  helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
-                    ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
-                    : helperInfo?.buildType === 'python'
-                    ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-800'
-                    : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800'
-                }`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                  {helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
-                    ? `v${helperInfo?.version || '0.3.2'} (Binary)`
-                    : helperInfo?.buildType === 'python'
-                    ? `v${helperInfo?.version || '0.3.2'} (Python)`
-                    : 'Legacy Python'}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {(helperInfo?.updateAvailable || (helperInfo?.version && helperInfo.version < '0.3.2')) && (
+                    <button
+                      onClick={() => setShowHelperSetupModal(true)}
+                      className="px-1 py-0.2 bg-amber-500 hover:bg-amber-600 text-white text-[8px] font-bold uppercase rounded cursor-pointer animate-pulse"
+                      title="Helper update available. Click to update."
+                    >
+                      Update
+                    </button>
+                  )}
+                  <span
+                    onClick={() => setShowHelperSetupModal(true)}
+                    className={`inline-flex items-center gap-1 font-mono text-[9px] px-1.5 py-0.5 rounded font-medium cursor-pointer ${
+                      helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
+                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
+                        : helperInfo?.buildType === 'python'
+                        ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-800'
+                        : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800'
+                    }`}
+                    title="Click to view Helper status and live logs"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                    {helperInfo?.buildType === 'binary' || helperInfo?.isFrozen
+                      ? `v${helperInfo?.version || '0.3.2'} (Binary)`
+                      : helperInfo?.buildType === 'python'
+                      ? `v${helperInfo?.version || '0.3.2'} (Python)`
+                      : 'Legacy Python'}
+                  </span>
+                </div>
               ) : (
-                <span className="text-neutral-400 dark:text-neutral-600 italic">
+                <button
+                  onClick={() => setShowHelperSetupModal(true)}
+                  className="text-neutral-400 hover:text-blue-500 dark:text-neutral-600 dark:hover:text-blue-400 italic cursor-pointer"
+                >
                   Not running
-                </span>
+                </button>
               )}
             </div>
           </>
